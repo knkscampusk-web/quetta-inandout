@@ -297,7 +297,17 @@ import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/fireb
  * 0) Firebase 설정
  *  - 배포 시 아래 BUILTIN_CONFIG 에 직접 넣거나, 설정 탭에서 붙여넣으세요.
  * =================================================================== */
-const BUILTIN_CONFIG = null; // 예: { apiKey:"...", authDomain:"...", projectId:"...", ... }
+const BUILTIN_CONFIG = {
+  apiKey: "AIzaSyAtIteJqFLAjZk-OOaj3nkkZVD77vYFZ4o",
+  authDomain: "quetta-2ea94.firebaseapp.com",
+  projectId: "quetta-2ea94",
+  storageBucket: "quetta-2ea94.firebasestorage.app",
+  messagingSenderId: "742368924282",
+  appId: "1:742368924282:web:db7dabb31ff08ea97521c3",
+  measurementId: "G-VXJR0KCTD1"
+};
+// ⚠ 이 키는 공개돼도 되는 종류(프로젝트 식별자)지만, 반드시 API 키에
+//    HTTP 리퍼러 제한을 걸어 우리 github.io 주소에서만 쓰이게 하세요.
 
 /* ===================================================================
  * 0-1) 네임스페이스 — 셋방살이용 접두어
@@ -586,9 +596,16 @@ async function saveDaily(){
   const R=STATE.result; if(!R||!R.base){toast('기준 날짜가 필요해요');return;}
   const payload={ base:R.base, season:R.season, split:R.split, writer:R.writer,
     totalRoster:R.totalRoster, sumReg:R.sumReg, sumRef:R.sumRef, groups:R.groups, savedAt:Date.now() };
-  if(fbReady){ try{ await setDoc(doc(db,COL('daily'),dayKey(R.base,R.season)),payload); toast('공유 저장 완료'); return; }catch(e){ console.error(e);} }
+  // 로컬은 항상 보조 저장
   localStorage.setItem(LK('daily_')+dayKey(R.base,R.season),JSON.stringify(payload));
-  toast('로컬 저장(공유 미연결)');
+  if(!fbReady){ toast('⚠ Firebase 미연결 — 로컬에만 저장됨'); return; }
+  try{
+    await setDoc(doc(db,COL('daily'),dayKey(R.base,R.season)),payload);
+    toast('✅ Firebase 저장 완료(공유)');
+  }catch(e){
+    console.error(e);
+    toast('⚠ Firebase 저장 실패: '+(e.code||e.message)+' (로컬엔 저장됨)');
+  }
 }
 async function loadDaily(key){
   if(!key) return null;
@@ -618,21 +635,44 @@ document.getElementById('cfgSaveBtn').onclick=async()=>{
   CFG.openBan=document.getElementById('cfgOpenBan').value;
   CFG.writer=document.getElementById('cfgWriter').value;
   localStorage.setItem(LK('cfg'),JSON.stringify(CFG));
-  if(fbReady){ try{ await setDoc(doc(db,COL('config'),'app'),CFG,{merge:true}); }catch(e){} }
   if(CFG.writer) document.getElementById('writer').value=CFG.writer;
-  updateSplitTag(); toast('설정 저장됨');
+  updateSplitTag();
+  if(!fbReady){ toast('⚠ Firebase 미연결 — 로컬에만 저장됨'); return; }
+  try{ await setDoc(doc(db,COL('config'),'app'),CFG,{merge:true}); toast('✅ 설정 저장됨(공유)'); }
+  catch(e){ console.error(e); toast('⚠ 설정 저장 실패: '+(e.code||e.message)); }
 };
 document.getElementById('cfgPwBtn').onclick=async()=>{
   const a=document.getElementById('cfgPw1').value, b=document.getElementById('cfgPw2').value;
   if(!a||a!==b){ toast('비번 확인이 일치하지 않아요'); return; }
-  await setGateHash(await sha256(a));
+  const h=await sha256(a);
+  localStorage.setItem(LK('gate'),h);
   document.getElementById('cfgPw1').value=''; document.getElementById('cfgPw2').value='';
-  toast('비밀번호 설정됨');
+  if(!fbReady){ toast('⚠ Firebase 미연결 — 비번 로컬에만 저장됨'); return; }
+  try{ await setDoc(doc(db,COL('config'),'gate'),{hash:h},{merge:true}); toast('✅ 비밀번호 설정됨(공유)'); }
+  catch(e){ console.error(e); toast('⚠ 비번 저장 실패: '+(e.code||e.message)); }
 };
+// 콘솔 원문(JS 객체)도, 순수 JSON도 모두 받아서 정규화
+function normalizeConfig(raw){
+  let t=raw.trim();
+  // const/var/let firebaseConfig = ... 또는 그냥 firebaseConfig = ... 벗기기
+  t=t.replace(/^\s*(?:(?:const|var|let)\s+)?[A-Za-z_]\w*\s*=\s*/,'').replace(/;\s*$/,'').trim();
+  // 이미 JSON이면 그대로
+  try{ return JSON.parse(t); }catch(e){}
+  // 키에 따옴표 없을 때 → 키만 큰따옴표 (값 속 https:// 는 안 건드림)
+  let q=t.replace(/([{,]\s*)([A-Za-z_]\w*)\s*:/g,'$1"$2":');
+  // 값/키의 작은따옴표 → 큰따옴표
+  q=q.replace(/'/g,'"');
+  // 트레일링 콤마 제거
+  q=q.replace(/,(\s*[}\]])/g,'$1');
+  return JSON.parse(q); // 실패하면 throw → 아래 catch
+}
 document.getElementById('cfgFbBtn').onclick=async()=>{
-  const raw=document.getElementById('cfgFb').value.trim();
-  try{ JSON.parse(raw); }catch(e){ toast('JSON 형식이 아니에요'); return; }
-  localStorage.setItem(LK('fb'),raw); toast('저장됨 — 재접속합니다');
+  const raw=document.getElementById('cfgFb').value;
+  let cfg;
+  try{ cfg=normalizeConfig(raw); }
+  catch(e){ toast('설정 형식을 못 읽었어요 — 콘솔 원문 그대로 붙여보세요'); return; }
+  if(!cfg.apiKey || String(cfg.apiKey).trim()===''){ toast('apiKey가 비어 있어요'); return; }
+  localStorage.setItem(LK('fb'),JSON.stringify(cfg)); toast('저장됨 — 재접속합니다');
   setTimeout(()=>location.reload(),700);
 };
 
