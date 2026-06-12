@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>QUETTA · 일일 등록 보고</title>
+
+<!-- Pretendard: 한국어 행정 UI용 본문/표 글꼴 -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" />
+<!-- 디스플레이용 -->
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet" />
+<!-- SheetJS (xlsx 파싱/내보내기) -->
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<style>
+:root{
+  --bg:#1b1d23; --panel:#23262e; --panel2:#2b2f39; --line:#363b46;
+  --ink:#e8eaed; --muted:#9aa1ad; --teal:#00AFAD; --teal-d:#0c8a88;
+  --gold:#c9a04a; --green:#46b06a; --red:#e06464; --dark:#24262D;
+  --shadow:0 10px 30px rgba(0,0,0,.35);
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Pretendard',system-ui,sans-serif;
+  background:
+    radial-gradient(1200px 500px at 85% -10%, rgba(0,175,173,.10), transparent 60%),
+    var(--bg);
+  color:var(--ink); font-size:14px; line-height:1.5; min-height:100vh;
+}
+h1,h2,h3{margin:0}
+button{font-family:inherit;cursor:pointer}
+.mono{font-variant-numeric:tabular-nums}
+
+/* ===== Gate ===== */
+#gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
+  background:radial-gradient(900px 500px at 50% 0%, rgba(0,175,173,.12), transparent 60%), var(--dark)}
+.gate-card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:38px 34px;width:340px;box-shadow:var(--shadow);text-align:center}
+.gate-card .logo{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.18em;color:var(--teal);font-size:13px}
+.gate-card h2{font-size:20px;margin:10px 0 4px}
+.gate-card p{color:var(--muted);font-size:12.5px;margin:0 0 22px}
+.gate-card input{width:100%;padding:12px 14px;border-radius:11px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:15px;text-align:center;letter-spacing:.12em}
+.gate-card input:focus{outline:none;border-color:var(--teal)}
+.gate-card button{width:100%;margin-top:14px;padding:12px;border-radius:11px;border:0;background:var(--teal);color:#04201f;font-weight:700;font-size:14px}
+.gate-card .err{color:var(--red);font-size:12px;min-height:16px;margin-top:10px}
+.gate-card .small{font-size:11px;color:var(--muted);margin-top:18px}
+.gate-card .small a{color:var(--teal);cursor:pointer}
+
+/* ===== Shell ===== */
+header{display:flex;align-items:center;gap:18px;padding:0 26px;height:60px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,var(--dark),#202128)}
+header .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.16em;font-size:14px}
+header .brand b{color:var(--teal)}
+header .sub{color:var(--muted);font-size:12px;border-left:1px solid var(--line);padding-left:16px}
+header .spacer{flex:1}
+header .who{font-size:12px;color:var(--muted)}
+header .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle}
+header .dot.off{background:var(--gold)}
+
+nav{display:flex;gap:4px;padding:10px 22px 0;border-bottom:1px solid var(--line);background:var(--panel)}
+nav button{background:none;border:0;color:var(--muted);padding:10px 16px;border-radius:9px 9px 0 0;font-size:13.5px;font-weight:600;border-bottom:2px solid transparent}
+nav button.active{color:var(--ink);background:var(--bg);border-bottom:2px solid var(--teal)}
+nav button:hover:not(.active){color:var(--ink)}
+
+main{padding:24px 26px 60px;max-width:1280px;margin:0 auto}
+.tab{display:none} .tab.active{display:block}
+
+/* ===== Cards / controls ===== */
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px 22px;margin-bottom:18px}
+.card h3{font-size:14px;letter-spacing:.02em;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card h3 .pin{color:var(--teal)}
+.card .desc{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+.row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:12px;color:var(--muted)}
+.field input,.field select{padding:9px 11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:13.5px}
+.field input:focus,.field select:focus{outline:none;border-color:var(--teal)}
+.btn{padding:9px 16px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:13px;font-weight:600}
+.btn:hover{border-color:var(--teal)}
+.btn.pri{background:var(--teal);color:#04201f;border-color:var(--teal)}
+.btn.pri:hover{background:var(--teal-d)}
+.btn.ghost{background:none}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+
+.drop{border:1.5px dashed var(--line);border-radius:12px;padding:18px;text-align:center;color:var(--muted);font-size:13px;background:var(--panel2);transition:.15s}
+.drop.ok{border-color:var(--teal);color:var(--ink)}
+.drop.drag{border-color:var(--teal);background:rgba(0,175,173,.06)}
+.drop b{color:var(--ink)} .drop .fn{color:var(--teal);font-weight:600}
+.uploads{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
+@media(max-width:880px){.uploads{grid-template-columns:1fr}}
+
+/* ===== Stat tiles ===== */
+.stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+@media(max-width:880px){.stats{grid-template-columns:repeat(2,1fr)}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:16px 16px}
+.stat .v{font-family:'Space Grotesk',sans-serif;font-size:28px;font-weight:700}
+.stat .l{font-size:11.5px;color:var(--muted);margin-top:2px}
+.stat.t .v{color:var(--teal)} .stat.g .v{color:var(--green)} .stat.y .v{color:var(--gold)} .stat.r .v{color:var(--red)}
+
+/* ===== Table ===== */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:9px 11px;text-align:right;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+thead th{background:var(--dark);color:#cfd3da;font-weight:600;font-size:12px;position:sticky;top:0}
+tbody tr:hover{background:var(--panel2)}
+tr.sub td{background:rgba(201,160,74,.10);font-weight:700;color:#e7d4a6}
+tr.tot td{background:rgba(0,175,173,.12);font-weight:700}
+.pos{color:var(--green)} .neg{color:var(--red)}
+.tag{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;border:1px solid var(--line);color:var(--muted)}
+.tag.pre{border-color:var(--gold);color:var(--gold)} .tag.post{border-color:var(--teal);color:var(--teal)}
+.tablewrap{overflow:auto;border:1px solid var(--line);border-radius:12px;max-height:520px}
+
+.warn{background:rgba(224,100,100,.10);border:1px solid rgba(224,100,100,.4);color:#f0b3b3;border-radius:10px;padding:11px 14px;font-size:12.5px;margin-bottom:14px}
+.note{color:var(--muted);font-size:12px;margin-top:8px}
+.pill{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--teal);color:#04201f;font-weight:700;padding:11px 22px;border-radius:30px;font-size:13px;box-shadow:var(--shadow);opacity:0;pointer-events:none;transition:.25s;z-index:60}
+.toast.show{opacity:1}
+.hl{color:var(--teal)}
+code{background:var(--panel2);border:1px solid var(--line);padding:1px 6px;border-radius:5px;font-size:12px;color:#bfe9e8}
+</style>
+</head>
+<body>
+
+<!-- ============ GATE ============ -->
+<div id="gate">
+  <div class="gate-card">
+    <div class="logo">GOOD BETTER BEST</div>
+    <h2>일일 등록 보고</h2>
+    <p>강남대성기숙 QUETTA · 행정실</p>
+    <input id="gatePw" type="password" placeholder="팀 비밀번호" autocomplete="off" />
+    <button id="gateBtn">입장</button>
+    <div class="err" id="gateErr"></div>
+    <div class="small">
+      처음이세요? <a id="setupLink">초기 설정(Firebase·비번)</a>
+    </div>
+  </div>
+</div>
+
+<!-- ============ APP ============ -->
+<div id="app" style="display:none">
+<header>
+  <div class="brand"><b>QUETTA</b> 등록보고</div>
+  <div class="sub">매일 경영지원 자료 → 등록파일 raw 행 산출</div>
+  <div class="spacer"></div>
+  <div class="who"><span class="dot" id="connDot"></span><span id="connTxt">연결 확인 중…</span></div>
+</header>
+
+<nav>
+  <button data-tab="dash" class="active">📊 대시보드</button>
+  <button data-tab="input">📥 일일명단 입력</button>
+  <button data-tab="raw">📋 raw 출력</button>
+  <button data-tab="set">⚙️ 설정</button>
+</nav>
+
+<main>
+
+<!-- ===== 입력 ===== -->
+<section class="tab" id="tab-input">
+  <div class="card">
+    <h3><span class="pin">📌</span> 기준 날짜 & 시즌</h3>
+    <div class="desc">개강일 설정값과 비교해 <b>개강 전(전형·계열 단위)</b> / <b>개강 후(반 단위)</b>로 자동 분기합니다.</div>
+    <div class="row">
+      <div class="field"><label>기준 날짜</label><input type="date" id="baseDate"></div>
+      <div class="field"><label>시즌</label>
+        <select id="season"><option value="정규">정규</option><option value="반수">반수</option></select>
+      </div>
+      <div class="field"><label>작성자</label><input id="writer" placeholder="이름"></div>
+      <div class="field"><label>현재 구분</label><div id="splitTag" style="padding-top:6px"></div></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="pin">📁</span> 자료 업로드 (3종)</h3>
+    <div class="desc">① 경영지원 일일등록명단 · ② 마스터(원생마스터: 성별·반 매핑) · ③ 경영지원 현황표 숫자(선택, 총인원·미납 검증용)</div>
+    <div class="uploads">
+      <label class="drop" id="dropDaily">
+        <input type="file" accept=".xlsx,.xls" hidden id="fileDaily">
+        <b>① 일일등록명단</b><br><span class="fn" id="nameDaily">파일 선택 / 끌어놓기</span>
+      </label>
+      <label class="drop" id="dropMaster">
+        <input type="file" accept=".xlsx,.xls" hidden id="fileMaster">
+        <b>② 마스터 (원생마스터)</b><br><span class="fn" id="nameMaster">파일 선택 / 끌어놓기</span>
+      </label>
+      <label class="drop" id="dropStatus">
+        <input type="file" accept=".xlsx,.xls" hidden id="fileStatus">
+        <b>③ 현황표 (선택)</b><br><span class="fn" id="nameStatus">파일 선택 / 끌어놓기</span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:16px">
+      <button class="btn pri" id="processBtn" disabled>처리하기</button>
+      <span class="note" id="inputNote">①·② 업로드 후 처리하세요. ③은 없어도 됩니다.</span>
+    </div>
+  </div>
+</section>
+
+<!-- ===== 대시보드 ===== -->
+<section class="tab active" id="tab-dash">
+  <div class="card" id="dashEmpty">
+    <h3><span class="pin">📊</span> 일일 등록 현황</h3>
+    <div class="desc">아직 처리된 자료가 없어요. <b>일일명단 입력</b> 탭에서 자료를 올리고 처리하면 여기 결과가 나옵니다.</div>
+  </div>
+
+  <div id="dashContent" style="display:none">
+    <div class="stats" id="statTiles"></div>
+    <div class="card">
+      <h3 style="justify-content:space-between">
+        <span><span class="pin">📊</span> <span id="dashTitle"></span></span>
+        <span>
+          <button class="btn" id="saveBtn">💾 현황 저장(공유)</button>
+          <button class="btn" id="loadPrevBtn">↩ 전일 불러오기</button>
+        </span>
+      </h3>
+      <div class="desc" id="dashMeta"></div>
+      <div id="warnBox"></div>
+      <div class="tablewrap"><table id="dashTable"></table></div>
+      <div class="note">증감 = 금일 − 전일(공유 저장값). 미등록 = 총인원(③ 현황표 또는 마스터 재원) − 등록 누적.</div>
+    </div>
+  </div>
+</section>
+
+<!-- ===== raw 출력 ===== -->
+<section class="tab" id="tab-raw">
+  <div class="card">
+    <h3 style="justify-content:space-between">
+      <span><span class="pin">📋</span> 등록파일 <code id="rawSheet">2026raw정규</code> 붙여넣기 행</span>
+      <span>
+        <button class="btn pri" id="copyBtn">📑 복사</button>
+        <button class="btn" id="xlsxBtn">⬇ 엑셀</button>
+      </span>
+    </h3>
+    <div class="desc">아래 행을 그대로 복사해 등록파일 raw 시트 맨 아래에 붙여넣으면, 일자별확인·2026정규·일일보고가 자동 계산됩니다.</div>
+    <div class="tablewrap"><table id="rawTable"></table></div>
+    <div class="note">접수·합격·편성인원은 등록 자료에 없는 값이라 비워둡니다(접수 측 보고는 별도). 필요 시 현황표(③)에서 채워 넣을 수 있어요.</div>
+  </div>
+</section>
+
+<!-- ===== 설정 ===== -->
+<section class="tab" id="tab-set">
+  <div class="card">
+    <h3><span class="pin">⚙️</span> 개강일 & 코호트</h3>
+    <div class="row">
+      <div class="field"><label>정규 개강일</label><input type="date" id="cfgOpenReg"></div>
+      <div class="field"><label>반수 개강일</label><input type="date" id="cfgOpenBan"></div>
+      <div class="field"><label>기본 작성자</label><input id="cfgWriter" placeholder="이름"></div>
+      <button class="btn pri" id="cfgSaveBtn">설정 저장(공유)</button>
+    </div>
+    <div class="note">개강일 기준으로 보고가 개강 전/후로 갈립니다. 매년 바뀌면 여기서 바꾸세요.</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="pin">🔑</span> 팀 비밀번호</h3>
+    <div class="desc">팀원이 입장할 때 쓰는 비번입니다. 평문이 아니라 해시로만 저장돼요.</div>
+    <div class="row">
+      <div class="field"><label>새 비밀번호</label><input type="password" id="cfgPw1"></div>
+      <div class="field"><label>확인</label><input type="password" id="cfgPw2"></div>
+      <button class="btn pri" id="cfgPwBtn">비번 설정/변경</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3><span class="pin">🔌</span> Firebase 연결</h3>
+    <div class="desc">팀 공유 저장소. <b>config 객체를 붙여넣고 저장</b>하면 이 브라우저에 기억됩니다. (배포 시엔 index.html 상단 상수에 직접 넣어도 됩니다.)</div>
+    <div class="field" style="width:100%">
+      <label>firebaseConfig (JSON)</label>
+      <textarea id="cfgFb" rows="8" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-family:monospace;font-size:12.5px"></textarea>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <button class="btn pri" id="cfgFbBtn">연결 저장 & 재접속</button>
+      <span class="note">⚠ API 키는 도메인 제한(HTTP referrer)을 꼭 거세요. 규칙은 <code>request.auth != null</code> 기준이며 <code>if true</code>를 쓰지 않습니다.</span>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+/* ===================================================================
+ * 0) Firebase 설정
+ *  - 배포 시 아래 BUILTIN_CONFIG 에 직접 넣거나, 설정 탭에서 붙여넣으세요.
+ * =================================================================== */
+const BUILTIN_CONFIG = null; // 예: { apiKey:"...", authDomain:"...", projectId:"...", ... }
+
+let app=null, auth=null, db=null, fbReady=false;
+
+function loadConfig(){
+  if (BUILTIN_CONFIG) return BUILTIN_CONFIG;
+  try { return JSON.parse(localStorage.getItem('quetta_fb')||'null'); } catch(e){ return null; }
+}
+async function initFirebase(){
+  const cfg = loadConfig();
+  if(!cfg){ setConn(false,'Firebase 미설정 (로컬 모드)'); return false; }
+  try{
+    app = initializeApp(cfg);
+    auth = getAuth(app);
+    db = getFirestore(app);
+    await signInAnonymously(auth);
+    await new Promise(res=>onAuthStateChanged(auth, u=>{ if(u) res(); }));
+    fbReady=true; setConn(true,'팀 공유 연결됨');
+    return true;
+  }catch(e){
+    console.error(e); setConn(false,'연결 실패: '+(e.code||e.message));
+    return false;
+  }
+}
+function setConn(ok,txt){
+  const d=document.getElementById('connDot'), t=document.getElementById('connTxt');
+  if(d) d.className='dot'+(ok?'':' off'); if(t) t.textContent=txt;
+}
+
+/* ===================================================================
+ * 1) 게이트 (익명 로그인 + 비번 해시)
+ * =================================================================== */
+async function sha256(s){
+  const b=await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+  return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
+}
+async function getGateHash(){
+  if(fbReady){ try{ const s=await getDoc(doc(db,'config','gate')); if(s.exists()) return s.data().hash; }catch(e){} }
+  return localStorage.getItem('quetta_gate')||null;
+}
+async function setGateHash(h){
+  localStorage.setItem('quetta_gate',h);
+  if(fbReady){ try{ await setDoc(doc(db,'config','gate'),{hash:h},{merge:true}); }catch(e){} }
+}
+document.getElementById('gateBtn').onclick = enterGate;
+document.getElementById('gatePw').addEventListener('keydown',e=>{ if(e.key==='Enter') enterGate(); });
+document.getElementById('setupLink').onclick = ()=>{ openApp(); switchTab('set'); };
+
+async function enterGate(){
+  const pw=document.getElementById('gatePw').value;
+  const err=document.getElementById('gateErr'); err.textContent='';
+  const stored=await getGateHash();
+  if(!stored){ err.textContent='비번이 아직 설정되지 않았어요. 아래 초기 설정에서 먼저 지정하세요.'; return; }
+  if(await sha256(pw)===stored){ sessionStorage.setItem('quetta_in','1'); openApp(); }
+  else err.textContent='비밀번호가 올라요. 다시 확인해 주세요.';
+}
+function openApp(){ document.getElementById('gate').style.display='none'; document.getElementById('app').style.display='block'; }
+
+/* ===================================================================
+ * 2) 탭
+ * =================================================================== */
+function switchTab(name){
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('active',b.dataset.tab===name));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.toggle('active',t.id==='tab-'+name));
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>switchTab(b.dataset.tab));
+
+/* ===================================================================
+ * 3) 유틸 / 파서
+ * =================================================================== */
+const norm = v => v==null ? null : (typeof v==='number' ? String(Math.round(v)) : String(v).trim());
+const SEXM={'남':'M','여':'F'};
+function toast(m){ const t=document.getElementById('toast'); t.textContent=m; t.classList.add('show'); setTimeout(()=>t.classList.remove('show'),1800); }
+
+function readXlsx(file){
+  return new Promise((res,rej)=>{
+    const r=new FileReader();
+    r.onload=e=>{ try{ res(XLSX.read(e.target.result,{type:'array',cellDates:true})); }catch(err){rej(err);} };
+    r.onerror=rej; r.readAsArrayBuffer(file);
+  });
+}
+function sheetRows(wb, names){
+  for(const n of names){ if(wb.SheetNames.includes(n)) return XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,defval:null}); }
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null});
+}
+
+// 일일등록명단: A1=날짜, 3행=헤더, 좌(등록 0~7) 우(환불 9~15)
+function parseDaily(wb){
+  const rows=sheetRows(wb,['일일명단','일일등록명단']);
+  let hdr=rows.findIndex(r=>r&&r.some(c=>String(c).trim()==='수험번호'));
+  if(hdr<0) hdr=2;
+  const reg=[], ref=[];
+  for(let i=hdr+1;i<rows.length;i++){
+    const r=rows[i]||[];
+    if(r[3]!=null) reg.push({sid:norm(r[3]),name:r[4],ban:r[1],cohort:r[5],jang:r[6],isNew:!!r[7]});
+    if(r[11]!=null) ref.push({sid:norm(r[11]),name:r[12],cohort:r[13],refund:r[14],jang:r[15]});
+  }
+  // 상단 날짜
+  let d=null; const top=rows[0]||[];
+  for(const c of top){ if(c instanceof Date){d=c;break;} if(typeof c==='string'&&/\d{4}-\d{2}-\d{2}/.test(c)){d=c;break;} }
+  return {reg, ref, fileDate:d};
+}
+
+// 마스터 원생마스터: 헤더명으로 컬럼 탐색
+function parseMaster(wb){
+  const rows=sheetRows(wb,['원생마스터','학생명단']);
+  const hdr=rows[0]||[];
+  const find=(...alts)=>{ for(const a of alts){ const i=hdr.findIndex(h=>String(h).trim()===a); if(i>=0) return i; } return -1; };
+  const ci={sid:find('수험번호'), sex:find('성별'), ban:find('반'), jh:find('전형방법'), gye:find('계열'), st:find('상태'), name:find('성명')};
+  const map={};
+  for(let i=1;i<rows.length;i++){
+    const r=rows[i]||[]; const k=norm(r[ci.sid]); if(!k) continue;
+    map[k]={sex:r[ci.sex], ban:r[ci.ban], jh:r[ci.jh], gye:r[ci.gye], state:r[ci.st], name:r[ci.name]};
+  }
+  const total = Object.values(map).filter(v=>v.state==='재원').length;
+  return {map, total};
+}
+
+/* ===================================================================
+ * 4) 결합 + 집계
+ * =================================================================== */
+let STATE={ daily:null, master:null, status:null, result:null };
+
+function aggregate(){
+  const D=STATE.daily, M=STATE.master;
+  const base=document.getElementById('baseDate').value;
+  const season=document.getElementById('season').value;
+  const writer=document.getElementById('writer').value||'';
+  const open = season==='정규' ? (CFG.openReg||'') : (CFG.openBan||'');
+  const isPost = open && base && base>=open;        // 개강 후?
+  const split = isPost ? '개강후' : '개강전';
+
+  const warnings=[];
+  const groups={};   // key -> 집계
+  const keyOf = m => isPost ? (m.ban||'미배정') : ((m.jh||'미상')+' | '+(m.gye||''));
+
+  const blank=()=>({등록:0,등록남:0,등록여:0,환불:0,환불남:0,환불여:0,장학등록:0,장학환불:0,신규:0,편입:0,
+                    전형:'',계열:'',반:''});
+  function g(m){
+    const k=keyOf(m); if(!groups[k]){ const b=blank();
+      if(isPost){ b.반=m.ban||'미배정'; b.전형=''; b.계열=m.gye||''; }
+      else { b.전형=m.jh||'미상'; b.계열=m.gye||''; b.반=''; }
+      groups[k]=b; } return groups[k];
+  }
+  // 등록
+  for(const s of D.reg){
+    const m=M.map[s.sid];
+    if(!m){ warnings.push(`등록자 ${s.name||''}(${s.sid})가 마스터에 없어 성별/반 매핑 누락`); continue; }
+    const b=g(m); b.등록++;
+    if(m.sex==='남') b.등록남++; else if(m.sex==='여') b.등록여++;
+    if(s.jang) b.장학등록++;
+    if(s.isNew) b.신규++;
+    if(s.cohort && String(s.cohort).includes('편입')) b.편입++;
+  }
+  // 환불
+  for(const s of D.ref){
+    const m=M.map[s.sid];
+    if(!m){ warnings.push(`환불자 ${s.name||''}(${s.sid})가 마스터에 없음(반수/편입 추정) — 성별 미상`);
+      const k='__환불미상'; if(!groups[k]){ const b=blank(); b.전형='(환불·마스터외)'; groups[k]=b; }
+      groups[k].환불++; continue; }
+    const b=g(m); b.환불++;
+    if(m.sex==='남') b.환불남++; else if(m.sex==='여') b.환불여++;
+    if(s.jang) b.장학환불++;
+  }
+
+  const totalRoster = (STATE.status&&STATE.status.total) ? STATE.status.total : (M.total||0);
+  STATE.result={ groups, split, isPost, season, base, writer, totalRoster, warnings,
+                 sumReg:D.reg.length, sumRef:D.ref.length };
+  renderDash(); renderRaw();
+}
+
+/* ===================================================================
+ * 5) 렌더 — 대시보드
+ * =================================================================== */
+function num(n,signed){ if(n==null||n==='') return ''; if(signed){ if(n>0) return `<span class="pos">+${n}</span>`; if(n<0) return `<span class="neg">${n}</span>`; return '0'; } return n; }
+
+async function renderDash(){
+  const R=STATE.result; if(!R) return;
+  document.getElementById('dashEmpty').style.display='none';
+  document.getElementById('dashContent').style.display='block';
+  document.getElementById('dashTitle').textContent=`${R.season}시즌 · ${R.base||'(날짜 미정)'}`;
+  document.getElementById('dashMeta').innerHTML=
+    `구분 <span class="tag ${R.isPost?'post':'pre'}">${R.split}</span> · 집계축 ${R.isPost?'반별':'전형·계열별'} · 작성자 ${R.writer||'-'}`;
+
+  // 전일 불러오기 (공유)
+  const prev = await loadDaily(prevDateKey(R.base, R.season));
+
+  // 통계 타일
+  const regM=sum(R,'등록남'), regF=sum(R,'등록여'), reg=sum(R,'등록');
+  const ref=sum(R,'환불'); const newc=sum(R,'신규');
+  const 미등록 = R.totalRoster - reg;
+  document.getElementById('statTiles').innerHTML=`
+    ${tile('t',R.totalRoster,'총인원(모수)')}
+    ${tile('g',reg,`금일 등록 (남${regM}/여${regF})`)}
+    ${tile('y',newc,'신규')}
+    ${tile('r',ref,'금일 환불')}
+    ${tile('',미등록<0?0:미등록,'미등록(=총−등록)')}`;
+
+  // 표
+  const rowsH=[];
+  const keys=Object.keys(R.groups).sort();
+  for(const k of keys){
+    const b=R.groups[k];
+    const label = R.isPost ? (b.반||k) : (b.전형+(b.계열?` · ${b.계열}`:''));
+    const pkey = k; const pv = prev&&prev.groups&&prev.groups[pkey] ? prev.groups[pkey] : null;
+    const chgReg = pv ? (b.등록 - (pv.등록||0)) : null;
+    const chgRef = pv ? (b.환불 - (pv.환불||0)) : null;
+    rowsH.push(`<tr>
+      <td>${label}</td>
+      <td class="mono">${b.등록}</td>
+      <td class="mono">${b.등록남}</td>
+      <td class="mono">${b.등록여}</td>
+      <td class="mono">${b.신규||''}</td>
+      <td class="mono">${b.환불||''}</td>
+      <td class="mono">${b.장학등록||''}</td>
+      <td class="mono">${num(chgReg,true)}</td>
+    </tr>`);
+  }
+  // 합계
+  rowsH.push(`<tr class="tot">
+    <td>합계</td><td class="mono">${reg}</td><td class="mono">${regM}</td><td class="mono">${regF}</td>
+    <td class="mono">${newc}</td><td class="mono">${ref}</td><td class="mono">${sum(R,'장학등록')}</td><td></td></tr>`);
+  document.getElementById('dashTable').innerHTML=
+    `<thead><tr><th>${R.isPost?'반':'전형 · 계열'}</th><th>등록</th><th>남</th><th>여</th><th>신규</th><th>환불</th><th>장학</th><th>전일대비</th></tr></thead><tbody>${rowsH.join('')}</tbody>`;
+
+  // 경고
+  const wb=document.getElementById('warnBox');
+  wb.innerHTML = R.warnings.length ? `<div class="warn"><b>확인 필요 ${R.warnings.length}건</b><br>${[...new Set(R.warnings)].slice(0,8).join('<br>')}${R.warnings.length>8?'<br>…':''}</div>` : '';
+  if(!prev){ wb.innerHTML += `<div class="note">전일(${prevDateKey(R.base,R.season)}) 저장값이 없어 전일대비는 비어 있어요. 매일 ‘현황 저장’을 누르면 다음날 자동 비교됩니다.</div>`; }
+}
+function tile(c,v,l){ return `<div class="stat ${c}"><div class="v mono">${v}</div><div class="l">${l}</div></div>`; }
+function sum(R,f){ return Object.values(R.groups).reduce((a,b)=>a+(b[f]||0),0); }
+
+/* ===================================================================
+ * 6) 렌더 — raw 출력
+ * =================================================================== */
+const RAW_COLS=['날짜','구분','전형','계열','반','편성인원','접수','접수 계','등록','환불','합격',
+  '등록-남','환불-남','등록-여','환불-여','작성자','장학접수','장학등록','장학환불','편입','비고'];
+
+function rawRows(){
+  const R=STATE.result; if(!R) return [];
+  const out=[];
+  for(const k of Object.keys(R.groups).sort()){
+    const b=R.groups[k];
+    out.push([ R.base, R.split, b.전형, b.계열, b.반, '', '', '', b.등록, b.환불, '',
+      b.등록남||'', b.환불남||'', b.등록여||'', b.환불여||'', R.writer, '', b.장학등록||'', b.장학환불||'', b.편입||'', '' ]);
+  }
+  return out;
+}
+function renderRaw(){
+  document.getElementById('rawSheet').textContent = STATE.result?.season==='반수' ? '2026raw반수' : '2026raw정규';
+  const rows=rawRows();
+  const h=`<thead><tr>${RAW_COLS.map(c=>`<th>${c}</th>`).join('')}</tr></thead>`;
+  const b=`<tbody>${rows.map(r=>`<tr>${r.map((c,i)=>`<td${i===0||i===1||i===2||i===3||i===15?' style="text-align:left"':''}>${c===''||c==null?'':c}</td>`).join('')}</tr>`).join('')}</tbody>`;
+  document.getElementById('rawTable').innerHTML=h+b;
+}
+document.getElementById('copyBtn').onclick=()=>{
+  const rows=rawRows(); if(!rows.length){toast('출력할 행이 없어요');return;}
+  const tsv=rows.map(r=>r.map(c=>c===null?'':c).join('\t')).join('\n');
+  navigator.clipboard.writeText(tsv).then(()=>toast('복사됨 — raw 시트에 붙여넣기'));
+};
+document.getElementById('xlsxBtn').onclick=()=>{
+  const rows=rawRows(); if(!rows.length){toast('출력할 행이 없어요');return;}
+  const ws=XLSX.utils.aoa_to_sheet([RAW_COLS,...rows]);
+  const wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'raw');
+  XLSX.writeFile(wb,`QUETTA_raw_${STATE.result.season}_${STATE.result.base||''}.xlsx`);
+};
+
+/* ===================================================================
+ * 7) 공유 저장 / 전일
+ * =================================================================== */
+const dayKey=(d,s)=> `${d}_${s}`;
+function prevDateKey(d,s){ if(!d) return ''; const t=new Date(d); t.setDate(t.getDate()-1); return dayKey(t.toISOString().slice(0,10),s); }
+
+async function saveDaily(){
+  const R=STATE.result; if(!R||!R.base){toast('기준 날짜가 필요해요');return;}
+  const payload={ base:R.base, season:R.season, split:R.split, writer:R.writer,
+    totalRoster:R.totalRoster, sumReg:R.sumReg, sumRef:R.sumRef, groups:R.groups, savedAt:Date.now() };
+  if(fbReady){ try{ await setDoc(doc(db,'daily',dayKey(R.base,R.season)),payload); toast('공유 저장 완료'); return; }catch(e){ console.error(e);} }
+  localStorage.setItem('quetta_daily_'+dayKey(R.base,R.season),JSON.stringify(payload));
+  toast('로컬 저장(공유 미연결)');
+}
+async function loadDaily(key){
+  if(!key) return null;
+  if(fbReady){ try{ const s=await getDoc(doc(db,'daily',key)); if(s.exists()) return s.data(); }catch(e){} }
+  try{ return JSON.parse(localStorage.getItem('quetta_daily_'+key)||'null'); }catch(e){ return null; }
+}
+document.getElementById('saveBtn').onclick=saveDaily;
+document.getElementById('loadPrevBtn').onclick=()=>renderDash();
+
+/* ===================================================================
+ * 8) 설정 / config
+ * =================================================================== */
+let CFG={openReg:'',openBan:'',writer:''};
+async function loadCfg(){
+  let c=null;
+  if(fbReady){ try{ const s=await getDoc(doc(db,'config','app')); if(s.exists()) c=s.data(); }catch(e){} }
+  if(!c){ try{ c=JSON.parse(localStorage.getItem('quetta_cfg')||'null'); }catch(e){} }
+  if(c){ CFG={...CFG,...c}; }
+  document.getElementById('cfgOpenReg').value=CFG.openReg||'';
+  document.getElementById('cfgOpenBan').value=CFG.openBan||'';
+  document.getElementById('cfgWriter').value=CFG.writer||'';
+  if(CFG.writer) document.getElementById('writer').value=CFG.writer;
+  document.getElementById('cfgFb').value = localStorage.getItem('quetta_fb')||'';
+}
+document.getElementById('cfgSaveBtn').onclick=async()=>{
+  CFG.openReg=document.getElementById('cfgOpenReg').value;
+  CFG.openBan=document.getElementById('cfgOpenBan').value;
+  CFG.writer=document.getElementById('cfgWriter').value;
+  localStorage.setItem('quetta_cfg',JSON.stringify(CFG));
+  if(fbReady){ try{ await setDoc(doc(db,'config','app'),CFG,{merge:true}); }catch(e){} }
+  if(CFG.writer) document.getElementById('writer').value=CFG.writer;
+  updateSplitTag(); toast('설정 저장됨');
+};
+document.getElementById('cfgPwBtn').onclick=async()=>{
+  const a=document.getElementById('cfgPw1').value, b=document.getElementById('cfgPw2').value;
+  if(!a||a!==b){ toast('비번 확인이 일치하지 않아요'); return; }
+  await setGateHash(await sha256(a));
+  document.getElementById('cfgPw1').value=''; document.getElementById('cfgPw2').value='';
+  toast('비밀번호 설정됨');
+};
+document.getElementById('cfgFbBtn').onclick=async()=>{
+  const raw=document.getElementById('cfgFb').value.trim();
+  try{ JSON.parse(raw); }catch(e){ toast('JSON 형식이 아니에요'); return; }
+  localStorage.setItem('quetta_fb',raw); toast('저장됨 — 재접속합니다');
+  setTimeout(()=>location.reload(),700);
+};
+
+function updateSplitTag(){
+  const base=document.getElementById('baseDate').value;
+  const season=document.getElementById('season').value;
+  const open=season==='정규'?CFG.openReg:CFG.openBan;
+  const post = open && base && base>=open;
+  document.getElementById('splitTag').innerHTML = base ?
+    `<span class="tag ${post?'post':'pre'}">${post?'개강 후 · 반별':'개강 전 · 전형별'}</span>` :
+    `<span class="pill">날짜 선택</span>`;
+}
+
+/* ===================================================================
+ * 9) 업로드 배선
+ * =================================================================== */
+function wireDrop(dropId,inputId,nameId,kind){
+  const drop=document.getElementById(dropId), input=document.getElementById(inputId), name=document.getElementById(nameId);
+  const handle=async(file)=>{
+    if(!file) return;
+    name.textContent=file.name; drop.classList.add('ok');
+    try{
+      const wb=await readXlsx(file);
+      if(kind==='daily'){ STATE.daily=parseDaily(wb);
+        if(STATE.daily.fileDate && !document.getElementById('baseDate').value){
+          const d=STATE.daily.fileDate; const iso = d instanceof Date ? d.toISOString().slice(0,10) : String(d).slice(0,10);
+          document.getElementById('baseDate').value=iso; updateSplitTag();
+        }
+        document.getElementById('inputNote').textContent=`일일명단: 등록 ${STATE.daily.reg.length} · 환불 ${STATE.daily.ref.length}`;
+      }
+      else if(kind==='master'){ STATE.master=parseMaster(wb);
+        document.getElementById('inputNote').textContent=`마스터: 재원 ${STATE.master.total}명 로드`;
+      }
+      else { STATE.status=parseStatus(wb);
+        document.getElementById('inputNote').textContent=`현황표: 총인원 ${STATE.status.total||'?'}`;
+      }
+    }catch(e){ console.error(e); toast('파일 읽기 실패: '+name.textContent); drop.classList.remove('ok'); }
+    checkReady();
+  };
+  input.addEventListener('change',e=>handle(e.target.files[0]));
+  ['dragover','dragenter'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag');}));
+  ['dragleave','drop'].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag');}));
+  drop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
+}
+// 현황표(③): 숫자에서 '총인원' 추출 시도 (없으면 마스터 재원 사용)
+function parseStatus(wb){
+  const rows=sheetRows(wb,wb.SheetNames);
+  let total=null;
+  for(const r of rows){ if(!r) continue;
+    for(let i=0;i<r.length;i++){ if(String(r[i]).includes('총인원')){
+      for(let j=i;j<r.length;j++){ if(typeof r[j]==='number'){ total=r[j]; break; } }
+    }}}
+  return {total, rows};
+}
+function checkReady(){ document.getElementById('processBtn').disabled = !(STATE.daily && STATE.master); }
+
+wireDrop('dropDaily','fileDaily','nameDaily','daily');
+wireDrop('dropMaster','fileMaster','nameMaster','master');
+wireDrop('dropStatus','fileStatus','nameStatus','status');
+
+document.getElementById('processBtn').onclick=()=>{
+  if(!document.getElementById('baseDate').value){ toast('기준 날짜를 선택하세요'); return; }
+  CFG.writer=document.getElementById('writer').value||CFG.writer;
+  aggregate(); switchTab('dash'); toast('처리 완료');
+};
+document.getElementById('baseDate').addEventListener('change',updateSplitTag);
+document.getElementById('season').addEventListener('change',updateSplitTag);
+
+/* ===================================================================
+ * 10) 부트
+ * =================================================================== */
+(async function(){
+  await initFirebase();
+  await loadCfg();
+  updateSplitTag();
+  // 이미 이번 세션에 들어왔다면 게이트 패스
+  if(sessionStorage.getItem('quetta_in')==='1') openApp();
+})();
+</script>
+</body>
+</html>

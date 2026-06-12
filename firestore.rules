@@ -1,0 +1,30 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 인증된(익명 로그인 포함) 세션만 접근. 'if true' 절대 금지.
+    // 게이트 비밀번호는 앱단 1차 잠금이고, 실제 접근 통제는 이 규칙의 request.auth 입니다.
+    // (더 강한 통제가 필요하면 Firebase Auth 이메일 허용목록으로 승격하세요.)
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    // 일일 보고 스냅샷: 날짜+시즌 단위
+    match /daily/{docId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // 설정(개강일 / 코호트 매핑 / 게이트 비번 해시 / 작성자 기본값)
+    match /config/{docId} {
+      allow read: if signedIn();
+      allow write: if signedIn();
+    }
+
+    // 그 외 경로는 모두 차단
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
