@@ -31,7 +31,7 @@ body{
     radial-gradient(900px 400px at 0% 110%, rgba(0,175,173,.05), transparent 60%),
     var(--bg);
   background-attachment:fixed;
-  color:var(--ink); font-size:14px; line-height:1.5; min-height:100vh;
+  color:var(--ink); font-size:16px; line-height:1.5; min-height:100vh;
 }
 h1,h2,h3{margin:0}
 button{font-family:inherit;cursor:pointer}
@@ -41,29 +41,29 @@ button{font-family:inherit;cursor:pointer}
 #gate{position:fixed;inset:0;z-index:50;display:flex;align-items:center;justify-content:center;
   background:radial-gradient(820px 460px at 50% -5%, rgba(0,175,173,.16), transparent 60%), var(--bg)}
 .gate-card{background:var(--panel);border:1px solid var(--line);border-radius:20px;padding:40px 34px;width:344px;box-shadow:var(--shadow);text-align:center}
-.gate-card .logo{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.2em;color:var(--teal);font-size:12px}
-.gate-card h2{font-size:21px;margin:12px 0 4px;letter-spacing:-.01em}
-.gate-card p{color:var(--muted);font-size:12.5px;margin:0 0 24px}
-.gate-card input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:15px;text-align:center;letter-spacing:.12em}
+.gate-card .logo{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.2em;color:var(--teal);font-size:14px}
+.gate-card h2{font-size:23px;margin:12px 0 4px;letter-spacing:-.01em}
+.gate-card p{color:var(--muted);font-size:14.5px;margin:0 0 24px}
+.gate-card input{width:100%;padding:13px 14px;border-radius:12px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-size:17px;text-align:center;letter-spacing:.12em}
 .gate-card input:focus{outline:none;border-color:var(--teal);background:#fff;box-shadow:0 0 0 3px rgba(0,175,173,.13)}
-.gate-card button{width:100%;margin-top:14px;padding:13px;border-radius:12px;border:0;background:var(--teal);color:#fff;font-weight:700;font-size:14px;box-shadow:0 6px 16px rgba(0,175,173,.28);transition:.15s}
+.gate-card button{width:100%;margin-top:14px;padding:13px;border-radius:12px;border:0;background:var(--teal);color:#fff;font-weight:700;font-size:16px;box-shadow:0 6px 16px rgba(0,175,173,.28);transition:.15s}
 .gate-card button:hover{background:var(--teal-d)}
-.gate-card .err{color:var(--red);font-size:12px;min-height:16px;margin-top:10px}
-.gate-card .small{font-size:11px;color:var(--muted);margin-top:20px}
+.gate-card .err{color:var(--red);font-size:14px;min-height:16px;margin-top:10px}
+.gate-card .small{font-size:13px;color:var(--muted);margin-top:20px}
 .gate-card .small a{color:var(--teal);cursor:pointer;font-weight:600}
 
 /* ===== Shell ===== */
 header{display:flex;align-items:center;gap:18px;padding:0 26px;height:62px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.82);backdrop-filter:blur(10px);position:sticky;top:0;z-index:20}
-header .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.14em;font-size:14px}
+header .brand{font-family:'Space Grotesk',sans-serif;font-weight:700;letter-spacing:.14em;font-size:16px}
 header .brand b{color:var(--teal)}
-header .sub{color:var(--muted);font-size:12px;border-left:1px solid var(--line);padding-left:16px}
+header .sub{color:var(--muted);font-size:14px;border-left:1px solid var(--line);padding-left:16px}
 header .spacer{flex:1}
-header .who{font-size:12px;color:var(--muted)}
+header .who{font-size:14px;color:var(--muted)}
 header .dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--green);margin-right:6px;vertical-align:middle;box-shadow:0 0 0 3px rgba(31,155,86,.16)}
 header .dot.off{background:var(--gold);box-shadow:0 0 0 3px rgba(169,120,27,.16)}
 
 nav{display:flex;gap:2px;padding:0 22px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.6);position:sticky;top:62px;z-index:19}
-nav button{background:none;border:0;color:var(--muted);padding:13px 16px;font-size:13.5px;font-weight:600;border-bottom:2px solid transparent;transition:.12s}
+nav button{background:none;border:0;color:var(--muted);padding:13px 16px;font-size:15.5px;font-weight:600;border-bottom:2px solid transparent;transition:.12s}
 nav button.active{color:var(--teal-ink);border-bottom:2px solid var(--teal)}
 nav button:hover:not(.active){color:var(--ink)}
 
@@ -73,22 +73,22 @@ main{padding:26px 26px 60px;max-width:1280px;margin:0 auto}
 
 /* ===== Cards / controls ===== */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)}
-.card h3{font-size:14.5px;letter-spacing:-.01em;margin-bottom:4px;display:flex;align-items:center;gap:8px}
+.card h3{font-size:16.5px;letter-spacing:-.01em;margin-bottom:4px;display:flex;align-items:center;gap:8px}
 .card h3 .pin{color:var(--teal)}
-.card .desc{color:var(--muted);font-size:12.5px;margin-bottom:16px}
+.card .desc{color:var(--muted);font-size:14.5px;margin-bottom:16px}
 .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
 .field{display:flex;flex-direction:column;gap:6px}
-.field label{font-size:12px;color:var(--muted);font-weight:500}
-.field input,.field select{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13.5px;transition:.12s}
+.field label{font-size:14px;color:var(--muted);font-weight:500}
+.field input,.field select{padding:10px 12px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:15.5px;transition:.12s}
 .field input:focus,.field select:focus{outline:none;border-color:var(--teal);box-shadow:0 0 0 3px rgba(0,175,173,.12)}
-.btn{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:13px;font-weight:600;transition:.12s;box-shadow:var(--shadow-sm)}
+.btn{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);font-size:15px;font-weight:600;transition:.12s;box-shadow:var(--shadow-sm)}
 .btn:hover{border-color:var(--teal);color:var(--teal-ink)}
 .btn.pri{background:var(--teal);color:#fff;border-color:var(--teal);box-shadow:0 6px 14px rgba(0,175,173,.24)}
 .btn.pri:hover{background:var(--teal-d);color:#fff}
 .btn.ghost{background:none;box-shadow:none}
 .btn:disabled{opacity:.45;cursor:not-allowed;box-shadow:none}
 
-.drop{border:1.5px dashed var(--line);border-radius:13px;padding:20px;text-align:center;color:var(--muted);font-size:13px;background:var(--panel2);transition:.15s;cursor:pointer}
+.drop{border:1.5px dashed var(--line);border-radius:13px;padding:20px;text-align:center;color:var(--muted);font-size:15px;background:var(--panel2);transition:.15s;cursor:pointer}
 .drop:hover{border-color:var(--teal)}
 .drop.ok{border-color:var(--teal);border-style:solid;color:var(--ink);background:var(--teal-soft)}
 .drop.drag{border-color:var(--teal);background:rgba(0,175,173,.09)}
@@ -101,34 +101,34 @@ main{padding:26px 26px 60px;max-width:1280px;margin:0 auto}
 @media(max-width:880px){.stats{grid-template-columns:repeat(2,1fr)}}
 .stat{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:17px 18px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden}
 .stat::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--line)}
-.stat .v{font-family:'Space Grotesk',sans-serif;font-size:29px;font-weight:700;letter-spacing:-.02em}
-.stat .l{font-size:11.5px;color:var(--muted);margin-top:2px}
+.stat .v{font-family:'Space Grotesk',sans-serif;font-size:31px;font-weight:700;letter-spacing:-.02em}
+.stat .l{font-size:13.5px;color:var(--muted);margin-top:2px}
 .stat.t::before{background:var(--teal)} .stat.t .v{color:var(--teal-ink)}
 .stat.g::before{background:var(--green)} .stat.g .v{color:var(--green)}
 .stat.y::before{background:var(--gold)} .stat.y .v{color:var(--gold)}
 .stat.r::before{background:var(--red)} .stat.r .v{color:var(--red)}
 
 /* ===== Table ===== */
-table{width:100%;border-collapse:collapse;font-size:13px}
+table{width:100%;border-collapse:collapse;font-size:15px}
 th,td{padding:10px 12px;text-align:right;border-bottom:1px solid var(--line)}
 th:first-child,td:first-child{text-align:left}
-thead th{background:var(--teal-soft);color:var(--teal-ink);font-weight:700;font-size:11.5px;letter-spacing:.02em;position:sticky;top:0}
+thead th{background:var(--teal-soft);color:var(--teal-ink);font-weight:700;font-size:13.5px;letter-spacing:.02em;position:sticky;top:0}
 tbody tr:hover{background:var(--panel2)}
 tr.sub td{background:var(--gold-soft);font-weight:700;color:var(--gold)}
 tr.tot td{background:var(--teal-soft);font-weight:700;color:var(--teal-ink)}
 .pos{color:var(--green);font-weight:600} .neg{color:var(--red);font-weight:600}
-.tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:11px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
+.tag{display:inline-block;padding:3px 9px;border-radius:20px;font-size:13px;font-weight:600;border:1px solid var(--line);color:var(--muted)}
 .tag.pre{border-color:rgba(169,120,27,.4);color:var(--gold);background:var(--gold-soft)}
 .tag.post{border-color:rgba(0,175,173,.4);color:var(--teal-ink);background:var(--teal-soft)}
 .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px;max-height:520px;background:#fff}
 
-.warn{background:#fdf0f0;border:1px solid rgba(207,71,71,.32);color:#a23535;border-radius:11px;padding:12px 14px;font-size:12.5px;margin-bottom:14px}
-.note{color:var(--muted);font-size:12px;margin-top:8px}
-.pill{font-size:11px;padding:3px 9px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
-.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-weight:700;padding:12px 24px;border-radius:30px;font-size:13px;box-shadow:0 10px 30px rgba(0,175,173,.35);opacity:0;pointer-events:none;transition:.25s;z-index:60}
+.warn{background:#fdf0f0;border:1px solid rgba(207,71,71,.32);color:#a23535;border-radius:11px;padding:12px 14px;font-size:14.5px;margin-bottom:14px}
+.note{color:var(--muted);font-size:14px;margin-top:8px}
+.pill{font-size:13px;padding:3px 9px;border-radius:20px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:var(--teal);color:#fff;font-weight:700;padding:12px 24px;border-radius:30px;font-size:15px;box-shadow:0 10px 30px rgba(0,175,173,.35);opacity:0;pointer-events:none;transition:.25s;z-index:60}
 .toast.show{opacity:1}
 .hl{color:var(--teal-ink)}
-code{background:var(--teal-soft);border:1px solid rgba(0,175,173,.22);padding:1px 6px;border-radius:6px;font-size:12px;color:var(--teal-ink)}
+code{background:var(--teal-soft);border:1px solid rgba(0,175,173,.22);padding:1px 6px;border-radius:6px;font-size:14px;color:var(--teal-ink)}
 </style>
 </head>
 <body>
@@ -274,7 +274,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,175,173,.22);padding:1p
     <div class="desc">팀 공유 저장소. <b>config 객체를 붙여넣고 저장</b>하면 이 브라우저에 기억됩니다. (배포 시엔 index.html 상단 상수에 직접 넣어도 됩니다.)</div>
     <div class="field" style="width:100%">
       <label>firebaseConfig (JSON)</label>
-      <textarea id="cfgFb" rows="8" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-family:monospace;font-size:12.5px"></textarea>
+      <textarea id="cfgFb" rows="8" style="width:100%;padding:11px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);font-family:monospace;font-size:14.5px"></textarea>
     </div>
     <div class="row" style="margin-top:12px">
       <button class="btn pri" id="cfgFbBtn">연결 저장 & 재접속</button>
@@ -299,11 +299,22 @@ import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/fireb
  * =================================================================== */
 const BUILTIN_CONFIG = null; // 예: { apiKey:"...", authDomain:"...", projectId:"...", ... }
 
+/* ===================================================================
+ * 0-1) 네임스페이스 — 셋방살이용 접두어
+ *  - 한 Firebase 프로젝트를 다른 도구와 공유할 때 충돌 방지.
+ *  - Firestore 컬렉션: quettaReg_daily / quettaReg_config
+ *  - 로컬/세션 저장 키도 동일 접두어로 분리.
+ *  - 충돌이 발견되면 이 한 줄만 바꾸면 전체 경로가 따라 바뀝니다.
+ * =================================================================== */
+const NS = 'quettaReg_';
+const COL = name => NS + name;          // 컬렉션 이름
+const LK  = key  => NS + key;           // localStorage / sessionStorage 키
+
 let app=null, auth=null, db=null, fbReady=false;
 
 function loadConfig(){
   if (BUILTIN_CONFIG) return BUILTIN_CONFIG;
-  try { return JSON.parse(localStorage.getItem('quetta_fb')||'null'); } catch(e){ return null; }
+  try { return JSON.parse(localStorage.getItem(LK('fb'))||'null'); } catch(e){ return null; }
 }
 async function initFirebase(){
   const cfg = loadConfig();
@@ -334,12 +345,12 @@ async function sha256(s){
   return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');
 }
 async function getGateHash(){
-  if(fbReady){ try{ const s=await getDoc(doc(db,'config','gate')); if(s.exists()) return s.data().hash; }catch(e){} }
-  return localStorage.getItem('quetta_gate')||null;
+  if(fbReady){ try{ const s=await getDoc(doc(db,COL('config'),'gate')); if(s.exists()) return s.data().hash; }catch(e){} }
+  return localStorage.getItem(LK('gate'))||null;
 }
 async function setGateHash(h){
-  localStorage.setItem('quetta_gate',h);
-  if(fbReady){ try{ await setDoc(doc(db,'config','gate'),{hash:h},{merge:true}); }catch(e){} }
+  localStorage.setItem(LK('gate'),h);
+  if(fbReady){ try{ await setDoc(doc(db,COL('config'),'gate'),{hash:h},{merge:true}); }catch(e){} }
 }
 document.getElementById('gateBtn').onclick = enterGate;
 document.getElementById('gatePw').addEventListener('keydown',e=>{ if(e.key==='Enter') enterGate(); });
@@ -350,7 +361,7 @@ async function enterGate(){
   const err=document.getElementById('gateErr'); err.textContent='';
   const stored=await getGateHash();
   if(!stored){ err.textContent='비번이 아직 설정되지 않았어요. 아래 초기 설정에서 먼저 지정하세요.'; return; }
-  if(await sha256(pw)===stored){ sessionStorage.setItem('quetta_in','1'); openApp(); }
+  if(await sha256(pw)===stored){ sessionStorage.setItem(LK('in'),'1'); openApp(); }
   else err.textContent='비밀번호가 올라요. 다시 확인해 주세요.';
 }
 function openApp(){ document.getElementById('gate').style.display='none'; document.getElementById('app').style.display='block'; }
@@ -575,14 +586,14 @@ async function saveDaily(){
   const R=STATE.result; if(!R||!R.base){toast('기준 날짜가 필요해요');return;}
   const payload={ base:R.base, season:R.season, split:R.split, writer:R.writer,
     totalRoster:R.totalRoster, sumReg:R.sumReg, sumRef:R.sumRef, groups:R.groups, savedAt:Date.now() };
-  if(fbReady){ try{ await setDoc(doc(db,'daily',dayKey(R.base,R.season)),payload); toast('공유 저장 완료'); return; }catch(e){ console.error(e);} }
-  localStorage.setItem('quetta_daily_'+dayKey(R.base,R.season),JSON.stringify(payload));
+  if(fbReady){ try{ await setDoc(doc(db,COL('daily'),dayKey(R.base,R.season)),payload); toast('공유 저장 완료'); return; }catch(e){ console.error(e);} }
+  localStorage.setItem(LK('daily_')+dayKey(R.base,R.season),JSON.stringify(payload));
   toast('로컬 저장(공유 미연결)');
 }
 async function loadDaily(key){
   if(!key) return null;
-  if(fbReady){ try{ const s=await getDoc(doc(db,'daily',key)); if(s.exists()) return s.data(); }catch(e){} }
-  try{ return JSON.parse(localStorage.getItem('quetta_daily_'+key)||'null'); }catch(e){ return null; }
+  if(fbReady){ try{ const s=await getDoc(doc(db,COL('daily'),key)); if(s.exists()) return s.data(); }catch(e){} }
+  try{ return JSON.parse(localStorage.getItem(LK('daily_')+key)||'null'); }catch(e){ return null; }
 }
 document.getElementById('saveBtn').onclick=saveDaily;
 document.getElementById('loadPrevBtn').onclick=()=>renderDash();
@@ -593,21 +604,21 @@ document.getElementById('loadPrevBtn').onclick=()=>renderDash();
 let CFG={openReg:'',openBan:'',writer:''};
 async function loadCfg(){
   let c=null;
-  if(fbReady){ try{ const s=await getDoc(doc(db,'config','app')); if(s.exists()) c=s.data(); }catch(e){} }
-  if(!c){ try{ c=JSON.parse(localStorage.getItem('quetta_cfg')||'null'); }catch(e){} }
+  if(fbReady){ try{ const s=await getDoc(doc(db,COL('config'),'app')); if(s.exists()) c=s.data(); }catch(e){} }
+  if(!c){ try{ c=JSON.parse(localStorage.getItem(LK('cfg'))||'null'); }catch(e){} }
   if(c){ CFG={...CFG,...c}; }
   document.getElementById('cfgOpenReg').value=CFG.openReg||'';
   document.getElementById('cfgOpenBan').value=CFG.openBan||'';
   document.getElementById('cfgWriter').value=CFG.writer||'';
   if(CFG.writer) document.getElementById('writer').value=CFG.writer;
-  document.getElementById('cfgFb').value = localStorage.getItem('quetta_fb')||'';
+  document.getElementById('cfgFb').value = localStorage.getItem(LK('fb'))||'';
 }
 document.getElementById('cfgSaveBtn').onclick=async()=>{
   CFG.openReg=document.getElementById('cfgOpenReg').value;
   CFG.openBan=document.getElementById('cfgOpenBan').value;
   CFG.writer=document.getElementById('cfgWriter').value;
-  localStorage.setItem('quetta_cfg',JSON.stringify(CFG));
-  if(fbReady){ try{ await setDoc(doc(db,'config','app'),CFG,{merge:true}); }catch(e){} }
+  localStorage.setItem(LK('cfg'),JSON.stringify(CFG));
+  if(fbReady){ try{ await setDoc(doc(db,COL('config'),'app'),CFG,{merge:true}); }catch(e){} }
   if(CFG.writer) document.getElementById('writer').value=CFG.writer;
   updateSplitTag(); toast('설정 저장됨');
 };
@@ -621,7 +632,7 @@ document.getElementById('cfgPwBtn').onclick=async()=>{
 document.getElementById('cfgFbBtn').onclick=async()=>{
   const raw=document.getElementById('cfgFb').value.trim();
   try{ JSON.parse(raw); }catch(e){ toast('JSON 형식이 아니에요'); return; }
-  localStorage.setItem('quetta_fb',raw); toast('저장됨 — 재접속합니다');
+  localStorage.setItem(LK('fb'),raw); toast('저장됨 — 재접속합니다');
   setTimeout(()=>location.reload(),700);
 };
 
@@ -698,7 +709,7 @@ document.getElementById('season').addEventListener('change',updateSplitTag);
   await loadCfg();
   updateSplitTag();
   // 이미 이번 세션에 들어왔다면 게이트 패스
-  if(sessionStorage.getItem('quetta_in')==='1') openApp();
+  if(sessionStorage.getItem(LK('in'))==='1') openApp();
 })();
 </script>
 </body>
