@@ -33,10 +33,10 @@ html,body{margin:0;padding:0}
 body{
   font-family:'Pretendard',system-ui,sans-serif;
   background:
-    radial-gradient(720px 720px at 80% 8%, rgba(0,178,190,.34), transparent 62%),
-    radial-gradient(760px 760px at 18% 92%, rgba(126,140,198,.40), transparent 64%),
-    radial-gradient(900px 620px at 45% 50%, rgba(126,140,198,.12), transparent 70%),
-    var(--bg);
+    radial-gradient(720px 720px at 80% 8%, rgba(0,178,190,.48), transparent 62%),
+    radial-gradient(760px 760px at 18% 92%, rgba(126,140,198,.54), transparent 64%),
+    radial-gradient(900px 620px at 45% 50%, rgba(126,140,198,.16), transparent 70%),
+    #ffffff;
   background-attachment:fixed;
   color:var(--ink); font-size:16px; line-height:1.5; min-height:100vh;
   position:relative;
@@ -44,7 +44,7 @@ body{
 /* 필름 그레인 — 고운 입자가 전면에 촘촘하게. opacity로 강도 조절(.0~1) */
 body::before{
   content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
-  opacity:.8; mix-blend-mode:multiply;
+  opacity:.45; mix-blend-mode:multiply;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.9'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
 }
 #app, #gate{position:relative; z-index:1}
