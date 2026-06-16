@@ -161,6 +161,12 @@ tr.tot td{background:var(--teal-soft);font-weight:700;color:var(--teal-ink)}
 .tag.pre{border-color:rgba(169,120,27,.4);color:var(--gold);background:var(--gold-soft)}
 .tag.post{border-color:rgba(0,178,190,.4);color:var(--teal-ink);background:var(--teal-soft)}
 .tablewrap{overflow:auto;border:1px solid var(--line);border-radius:13px;max-height:520px;background:#fff}
+/* raw 출력 표: 21열 — 카드 폭 넓히고 글씨 축소, 셀 줄바꿈 금지 */
+#tab-raw .card{width:calc(100vw - 48px);max-width:none;margin-left:calc(50% - 50vw + 24px)}
+#rawTable{font-size:12px}
+#rawTable th,#rawTable td{white-space:nowrap;padding:8px 10px}
+#rawTable thead th{font-size:11.5px}
+@media(max-width:880px){#tab-raw .card{width:auto;margin-left:0}}
 
 .warn{background:#fdf0f0;border:1px solid rgba(207,71,71,.32);color:#a23535;border-radius:11px;padding:12px 14px;font-size:14.5px;margin-bottom:14px}
 .note{color:var(--muted);font-size:14px;margin-top:8px}
