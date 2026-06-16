@@ -555,76 +555,59 @@ function parseReceipt(wb){
  * =================================================================== */
 let STATE={ daily:null, master:null, receipt:null, result:null };
 
+// 고정 목록 (설정에서 덮어쓰기 가능)
+const DEFAULT_BANS=['A','X','I','O','M','K','N','D','S'];
+const DEFAULT_JH=['장학퀀텀_0T','장학퀀텀_4T','장학퀀텀_6T','장학퀀텀_10T','장학퀀텀_14T','우선선발 전형','선착순 전형','수학만 전형','특별 전형','유시험 전형'];
+const JANG_LIST=['교습100+기100+교재100+콘100','교습100+독100+교재100','교습100+교재100','교습80+교재50','교습50+교재50','교습30','교습20'];
+const GYE_FIXED='미적/확통';
+
 function aggregate(){
   const D=STATE.daily, M=STATE.master, RC=STATE.receipt;
   const base=document.getElementById('baseDate').value;
   const season=document.getElementById('season').value;
   const writer=document.getElementById('writer').value||'';
-  const open = season==='정규' ? (CFG.openReg||'') : (CFG.openBan||'');
-  const isPost = open && base && base>=open;        // 개강 후?
-  const split = isPost ? '개강후' : '개강전';
 
+  const banList=(CFG.banList&&CFG.banList.length?CFG.banList:DEFAULT_BANS);
+  const jhList =(CFG.jhList &&CFG.jhList.length ?CFG.jhList :DEFAULT_JH);
   const warnings=[];
-  const groups={};
-  const keyOf = m => isPost ? (m.ban||'미배정') : (m.jh||'미상');
 
-  const blank=()=>({등록:0,등록남:0,등록여:0,환불:0,환불남:0,환불여:0,장학등록:0,장학환불:0,신규:0,편입:0,
-                    접수:'',합격:'',편성인원:'',전형:'',계열:'',반:''});
-  function ensure(key, info){ if(!groups[key]){ const b=blank(); Object.assign(b,info); groups[key]=b; } return groups[key]; }
-  function g(m){
-    const key=keyOf(m);
-    return ensure(key, isPost ? {반:m.ban||'미배정', 계열:m.gye||'', 전형:''}
-                               : {전형:m.jh||'미상', 계열:m.gye||'', 반:''});
-  }
+  // ── 반별 집계 (개강후·재등록·편입·반수 블록용) ──
+  const zero=()=>({편성:0,등록:0,환불:0,등록남:0,환불남:0,등록여:0,환불여:0,신규:0,재등록:0,편입:0,반수:0,장학등록:0,장학환불:0});
+  const perBan={};
+  for(const b of [...banList,'미배정']){ perBan[b]=zero(); perBan[b].편성=(M.banCount&&M.banCount[b])||0; }
+  const pb=ban=>{ if(!perBan[ban]){ perBan[ban]=zero(); perBan[ban].편성=(M.banCount&&M.banCount[ban])||0; } return perBan[ban]; };
 
-  // 등록
   for(const s of D.reg){
     const m=M.map[s.sid];
-    if(!m){ warnings.push(`등록자 ${s.name||''}(${s.sid})가 마스터에 없어 성별/반 매핑 누락`); continue; }
-    const b=g(m); b.등록++;
+    if(!m){ warnings.push(`등록자 ${s.name||''}(${s.sid})가 마스터에 없어 매핑 누락`); continue; }
+    const b=pb(m.ban||'미배정'); b.등록++;
     if(m.sex==='남') b.등록남++; else if(m.sex==='여') b.등록여++;
+    if(s.isNew) b.신규++; else b.재등록++;
+    const co=String(s.cohort||'');
+    if(co.includes('편입')) b.편입++;
+    if(co.includes('반수')) b.반수++;
     if(s.jang) b.장학등록++;
-    if(s.isNew) b.신규++;
-    if(s.cohort && String(s.cohort).includes('편입')) b.편입++;
   }
-  // 환불(퇴소)
   for(const s of D.ref){
     const m=M.map[s.sid];
-    if(!m){ warnings.push(`퇴소자 ${s.name||''}(${s.sid})가 마스터에 없음(등록 처리 후 마스터로 추정) — 성별 미상`);
-      const k='__퇴소미상'; ensure(k,{전형:'(퇴소·마스터외)'}); groups[k].환불++; continue; }
-    const b=g(m); b.환불++;
+    if(!m){ warnings.push(`퇴소자 ${s.name||''}(${s.sid})가 마스터에 없음(등록 처리 후 마스터 추정)`); continue; }
+    const b=pb(m.ban||'미배정'); b.환불++;
     if(m.sex==='남') b.환불남++; else if(m.sex==='여') b.환불여++;
     if(s.jang) b.장학환불++;
   }
 
-  // ── 모든 반/전형 항상 출력 (설정 목록 기준, 없으면 0) ──
-  const list = isPost ? (CFG.banList||[]) : (CFG.jhList||[]);
-  for(const name of list){
-    ensure(name, isPost ? {반:name, 전형:'', 계열:''} : {전형:name, 반:'', 계열:''});
+  // ── 전형별 접수 (개강전 블록용) ──
+  const perJh={};
+  for(const jh of jhList){
+    const r=RC&&RC.byJh&&RC.byJh[jh];
+    perJh[jh]={ 접수:r?r.접수:'', 합격: r ? (jh==='유시험 전형'?'':r.접수) : '' };
   }
 
-  // ── 접수·합격·편성인원 채우기 ──
-  for(const key of Object.keys(groups)){
-    const b=groups[key];
-    if(isPost){
-      // 편성인원 = 마스터 반별 학생 수
-      if(b.반 && M.banCount && M.banCount[b.반]!=null) b.편성인원=M.banCount[b.반];
-    } else {
-      // 접수 = 접수현황 전형별, 합격 = 접수(유시험 제외)
-      if(RC && RC.byJh && RC.byJh[b.전형]){
-        b.접수=RC.byJh[b.전형].접수;
-        b.합격 = (b.전형==='유시험 전형') ? '' : RC.byJh[b.전형].접수;
-      }
-    }
-  }
-
-  const totalRoster = M.total||0;
-  // 출력 순서: 설정 목록 순서 우선, 그 외(미배정·퇴소미상 등)는 뒤에
-  const order=[]; const seen=new Set();
-  for(const name of list){ if(groups[name]){ order.push(name); seen.add(name); } }
-  for(const k of Object.keys(groups)){ if(!seen.has(k)) order.push(k); }
-  STATE.result={ groups, order, split, isPost, season, base, writer, totalRoster, warnings,
-                 sumReg:D.reg.length, sumRef:D.ref.length };
+  const reg=D.reg.length, ref=D.ref.length;
+  const newc=Object.values(perBan).reduce((a,b)=>a+b.신규,0);
+  const totalRoster=M.total||0;
+  STATE.result={ base, writer, season, banList, jhList,
+                 perBan, perJh, totalRoster, reg, ref, newc, warnings };
   renderDash(); renderRaw();
 }
 
@@ -637,22 +620,19 @@ async function renderDash(){
   const R=STATE.result; if(!R) return;
   document.getElementById('dashEmpty').style.display='none';
   document.getElementById('dashContent').style.display='block';
-  document.getElementById('dashTitle').textContent=`${R.season}시즌 · ${R.base||'(날짜 미정)'}`;
-  document.getElementById('dashMeta').innerHTML=
-    `구분 <span class="tag ${R.isPost?'post':'pre'}">${R.split}</span> · 집계축 ${R.isPost?'반별':'전형·계열별'} · 작성자 ${R.writer||'-'}`;
+  document.getElementById('dashTitle').textContent=`${R.season}시즌 · ${R.base||'(날짜 미정)'} · 반별 등록`;
+  document.getElementById('dashMeta').innerHTML=`작성자 ${R.writer||'-'} · 모든 반/전형 0 포함 출력은 raw 탭에서`;
 
-  // 전일 불러오기 (공유)
   const prev = await loadDaily(prevDateKey(R.base, R.season));
+  const pBan = prev&&prev.perBan ? prev.perBan : null;
 
-  // 통계 타일
-  const regM=sum(R,'등록남'), regF=sum(R,'등록여'), reg=sum(R,'등록');
-  const ref=sum(R,'환불'); const newc=sum(R,'신규');
+  const S=(f)=>Object.values(R.perBan).reduce((a,b)=>a+(b[f]||0),0);
+  const reg=S('등록'), regM=S('등록남'), regF=S('등록여'), ref=S('환불'), newc=S('신규');
   const 미등록 = R.totalRoster - reg;
 
   // 히어로
   document.getElementById('heroTitle').innerHTML=`${R.base||'(날짜 미정)'} <span class="grad">${R.season}시즌</span>`;
-  document.getElementById('heroSub').innerHTML=
-    `<span class="tag ${R.isPost?'post':'pre'}">${R.split}</span> · 집계축 ${R.isPost?'반별':'전형·계열별'} · 작성자 ${R.writer||'-'}`;
+  document.getElementById('heroSub').innerHTML=`작성자 ${R.writer||'-'} · 재등록 ${S('재등록')} · 편입 ${S('편입')} · 반수 ${S('반수')}`;
   document.getElementById('heroNew').textContent=newc;
   document.getElementById('heroOut').textContent=ref;
   document.getElementById('heroMini').innerHTML=
@@ -665,58 +645,77 @@ async function renderDash(){
     ${tile('t',R.totalRoster,'총인원(모수)')}
     ${tile('g',reg,`금일 등록 (남${regM}/여${regF})`)}
     ${tile('y',newc,'신규')}
-    ${tile('r',ref,'금일 환불')}
+    ${tile('r',ref,'금일 환불(퇴소)')}
     ${tile('',미등록<0?0:미등록,'미등록(=총−등록)')}`;
 
-  // 표
+  // 반별 표
   const rowsH=[];
-  const keys=R.order||Object.keys(R.groups);
-  for(const k of keys){
-    const b=R.groups[k];
-    const label = R.isPost ? (b.반||k) : (b.전형+(b.계열?` · ${b.계열}`:''));
-    const pkey = k; const pv = prev&&prev.groups&&prev.groups[pkey] ? prev.groups[pkey] : null;
-    const chgReg = pv ? (b.등록 - (pv.등록||0)) : null;
-    const chgRef = pv ? (b.환불 - (pv.환불||0)) : null;
+  for(const ban of [...R.banList,'미배정']){
+    const b=R.perBan[ban]; if(!b) continue;
+    const pv = pBan&&pBan[ban] ? pBan[ban] : null;
+    const chg = pv ? (b.등록-(pv.등록||0)) : null;
     rowsH.push(`<tr>
-      <td>${label}</td>
+      <td>${ban}</td>
+      <td class="mono">${b.편성}</td>
       <td class="mono">${b.등록}</td>
       <td class="mono">${b.등록남}</td>
       <td class="mono">${b.등록여}</td>
+      <td class="mono">${b.재등록}</td>
       <td class="mono">${b.신규||''}</td>
       <td class="mono">${b.환불||''}</td>
-      <td class="mono">${b.장학등록||''}</td>
-      <td class="mono">${num(chgReg,true)}</td>
+      <td class="mono">${num(chg,true)}</td>
     </tr>`);
   }
-  // 합계
   rowsH.push(`<tr class="tot">
-    <td>합계</td><td class="mono">${reg}</td><td class="mono">${regM}</td><td class="mono">${regF}</td>
-    <td class="mono">${newc}</td><td class="mono">${ref}</td><td class="mono">${sum(R,'장학등록')}</td><td></td></tr>`);
+    <td>소계</td><td class="mono">${S('편성')}</td><td class="mono">${reg}</td><td class="mono">${regM}</td><td class="mono">${regF}</td>
+    <td class="mono">${S('재등록')}</td><td class="mono">${newc}</td><td class="mono">${ref}</td><td></td></tr>`);
   document.getElementById('dashTable').innerHTML=
-    `<thead><tr><th>${R.isPost?'반':'전형 · 계열'}</th><th>등록</th><th>남</th><th>여</th><th>신규</th><th>환불</th><th>장학</th><th>전일대비</th></tr></thead><tbody>${rowsH.join('')}</tbody>`;
+    `<thead><tr><th>반</th><th>편성</th><th>등록</th><th>남</th><th>여</th><th>재등록</th><th>신규</th><th>환불</th><th>전일대비</th></tr></thead><tbody>${rowsH.join('')}</tbody>`;
 
-  // 경고
   const wb=document.getElementById('warnBox');
   wb.innerHTML = R.warnings.length ? `<div class="warn"><b>확인 필요 ${R.warnings.length}건</b><br>${[...new Set(R.warnings)].slice(0,8).join('<br>')}${R.warnings.length>8?'<br>…':''}</div>` : '';
   if(!prev){ wb.innerHTML += `<div class="note">전일(${prevDateKey(R.base,R.season)}) 저장값이 없어 전일대비는 비어 있어요. 매일 ‘현황 저장’을 누르면 다음날 자동 비교됩니다.</div>`; }
 }
 function tile(c,v,l){ return `<div class="stat ${c}"><div class="v mono">${v}</div><div class="l">${l}</div></div>`; }
-function sum(R,f){ return Object.values(R.groups).reduce((a,b)=>a+(b[f]||0),0); }
 
 /* ===================================================================
  * 6) 렌더 — raw 출력
  * =================================================================== */
 const RAW_COLS=['날짜','구분','전형','계열','반','편성인원','접수','접수 계','등록','환불','합격',
-  '등록-남','환불-남','등록-여','환불-여','작성자','장학접수','장학등록','장학환불','편입','비고'];
+  '등록-남','환불-남','등록-여','환불-여','작성자','장학접수','장학등록','장학환불','편입','반수'];
 
+// 로데이터 6블록: 개강전(전형별) · 장학 · 개강후(반별) · 6월 재등록(반별) · 편입(반별) · 반수(반별)
 function rawRows(){
   const R=STATE.result; if(!R) return [];
+  const D=R.base, W=R.writer;
+  const bans=[...R.banList,'미배정'];
+  const E=''; // 빈칸
+  const row=o=>[ o.날짜??D, o.구분??E, o.전형??E, o.계열??E, o.반??E, o.편성인원??E, o.접수??E, o['접수 계']??E,
+    o.등록??E, o.환불??E, o.합격??E, o['등록-남']??E, o['환불-남']??E, o['등록-여']??E, o['환불-여']??E,
+    W, o.장학접수??E, o.장학등록??E, o.장학환불??E, o.편입??E, o.반수??E ];
   const out=[];
-  for(const k of (R.order||Object.keys(R.groups))){
-    const b=R.groups[k]; if(!b) continue;
-    out.push([ R.base, R.split, b.전형, b.계열, b.반, b.편성인원, b.접수, b.접수, b.등록, b.환불, b.합격,
-      b.등록남||'', b.환불남||'', b.등록여||'', b.환불여||'', R.writer, '', b.장학등록||'', b.장학환불||'', b.편입||'', '' ]);
+
+  // ① 개강전 — 전형별 접수/합격
+  for(const jh of R.jhList){
+    const p=R.perJh[jh]||{};
+    out.push(row({구분:'개강전', 전형:jh, 계열:GYE_FIXED, 반:'7월 편입', '접수 계':p.접수, 합격:p.합격}));
   }
+  // ② 장학 — 고정 목록
+  for(const j of JANG_LIST){ out.push(row({구분:'장학', 전형:j})); }
+  // ③ 개강후 — 반별 등록/환불/편성/남여
+  for(const ban of bans){ const b=R.perBan[ban]||{};
+    out.push(row({구분:'개강후', 반:ban, 편성인원:b.편성||E, 등록:b.등록||E, 환불:b.환불||E,
+      '등록-남':b.등록남||E, '환불-남':b.환불남||E, '등록-여':b.등록여||E, '환불-여':b.환불여||E})); }
+  // ④ 6월 재등록 — 반별 재등록 수
+  for(const ban of bans){ const b=R.perBan[ban]||{};
+    out.push(row({구분:'6월', 전형:'재등록', 반:ban, 등록:b.재등록||E})); }
+  // ⑤ 편입(포함) — 반별 편입 수
+  for(const ban of bans){ const b=R.perBan[ban]||{};
+    out.push(row({구분:'편입(포함)', 전형:'편입', 반:ban, 등록:b.편입||E})); }
+  // ⑥ 반수 — 반별 반수 수
+  for(const ban of bans){ const b=R.perBan[ban]||{};
+    out.push(row({구분:'반수', 전형:'반수', 반:ban, 등록:b.반수||E})); }
+
   return out;
 }
 function renderRaw(){
@@ -746,8 +745,9 @@ function prevDateKey(d,s){ if(!d) return ''; const t=new Date(d); t.setDate(t.ge
 
 async function saveDaily(){
   const R=STATE.result; if(!R||!R.base){toast('기준 날짜가 필요해요');return;}
-  const payload={ base:R.base, season:R.season, split:R.split, writer:R.writer,
-    totalRoster:R.totalRoster, sumReg:R.sumReg, sumRef:R.sumRef, groups:R.groups, savedAt:Date.now() };
+  const payload={ base:R.base, season:R.season, writer:R.writer,
+    totalRoster:R.totalRoster, reg:R.reg, ref:R.ref, newc:R.newc,
+    perBan:R.perBan, perJh:R.perJh, savedAt:Date.now() };
   // 로컬은 항상 보조 저장
   localStorage.setItem(LK('daily_')+dayKey(R.base,R.season),JSON.stringify(payload));
   if(!fbReady){ toast('⚠ Firebase 미연결 — 로컬에만 저장됨'); return; }
