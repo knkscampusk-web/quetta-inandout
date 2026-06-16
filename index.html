@@ -270,7 +270,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
       <div class="hero-panel">
         <div class="hero-panel-label">TODAY · 금일 현황</div>
         <div class="hero-duo">
-          <div class="hero-stat"><span class="hero-num" id="heroReg">0</span><span class="hero-lab">등록</span></div>
+          <div class="hero-stat"><span class="hero-num" id="heroNew">0</span><span class="hero-lab">신규</span></div>
           <div class="hero-div"></div>
           <div class="hero-stat"><span class="hero-num" id="heroOut">0</span><span class="hero-lab">퇴소</span></div>
         </div>
@@ -586,12 +586,13 @@ async function renderDash(){
   document.getElementById('heroTitle').innerHTML=`${R.base||'(날짜 미정)'} <span class="grad">${R.season}시즌</span>`;
   document.getElementById('heroSub').innerHTML=
     `<span class="tag ${R.isPost?'post':'pre'}">${R.split}</span> · 집계축 ${R.isPost?'반별':'전형·계열별'} · 작성자 ${R.writer||'-'}`;
-  document.getElementById('heroReg').textContent=reg;
+  document.getElementById('heroNew').textContent=newc;
   document.getElementById('heroOut').textContent=ref;
   document.getElementById('heroMini').innerHTML=
     `<div class="hp">총인원<b>${R.totalRoster}</b></div>`+
-    `<div class="hp">미등록<b>${미등록<0?0:미등록}</b></div>`+
-    `<div class="hp">신규<b>${newc}</b></div>`;
+    `<div class="hp">등록<b>${reg}</b></div>`+
+    `<div class="hp">환불<b>${ref}</b></div>`+
+    `<div class="hp">미등록<b>${미등록<0?0:미등록}</b></div>`;
 
   document.getElementById('statTiles').innerHTML=`
     ${tile('t',R.totalRoster,'총인원(모수)')}
