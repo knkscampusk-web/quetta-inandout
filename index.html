@@ -114,6 +114,23 @@ main{padding:26px 26px 60px;max-width:1280px;margin:0 auto}
 .uploads{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px}
 @media(max-width:880px){.uploads{grid-template-columns:1fr}}
 
+/* ===== Hero (eyebrow + display title + gradient panel) ===== */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-bottom:18px;align-items:stretch}
+@media(max-width:880px){.hero{grid-template-columns:1fr}}
+.hero-left{display:flex;flex-direction:column;justify-content:center;padding:8px 4px}
+.eyebrow{font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--teal-ink);font-weight:700;margin-bottom:12px}
+.hero-title{font-size:40px;font-weight:800;letter-spacing:-.025em;line-height:1.08;color:var(--ink)}
+.hero-title .grad{background:var(--gradient-brand);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero-sub{color:var(--muted);font-size:15px;margin-top:14px}
+.hero-sub .tag{vertical-align:1px}
+.hero-panel{position:relative;overflow:hidden;border-radius:var(--radius-2xl);background:var(--gradient-brand);color:#fff;padding:28px 30px;box-shadow:var(--shadow-brand);display:flex;flex-direction:column;justify-content:center;min-height:168px}
+.hero-panel-label{font-size:11px;letter-spacing:.18em;text-transform:uppercase;font-weight:700;opacity:.9}
+.hero-panel-main{font-family:'Space Grotesk',sans-serif;font-weight:700;font-size:52px;line-height:1;margin-top:8px;letter-spacing:-.02em}
+.hero-panel-main .unit{font-family:'Pretendard',sans-serif;font-size:18px;font-weight:600;margin-left:8px;opacity:.92}
+.hero-panel-row{display:flex;gap:26px;margin-top:18px;position:relative;z-index:1}
+.hero-panel-row .hp{font-size:13px;opacity:.92}
+.hero-panel-row .hp b{display:block;font-family:'Space Grotesk',sans-serif;font-size:22px;font-weight:700;margin-top:2px;letter-spacing:-.01em}
+.hero-mark{position:absolute;right:-58px;bottom:-72px;width:210px;height:210px;border-radius:50%;border:42px solid rgba(255,255,255,.13);pointer-events:none}
 /* ===== Stat tiles ===== */
 .stats{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
 @media(max-width:880px){.stats{grid-template-columns:repeat(2,1fr)}}
@@ -239,6 +256,19 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
   </div>
 
   <div id="dashContent" style="display:none">
+    <div class="hero">
+      <div class="hero-left">
+        <div class="eyebrow">DAILY ENROLLMENT REPORT</div>
+        <h1 class="hero-title" id="heroTitle"></h1>
+        <div class="hero-sub" id="heroSub"></div>
+      </div>
+      <div class="hero-panel">
+        <div class="hero-panel-label">TODAY · 금일 등록</div>
+        <div class="hero-panel-main"><span id="heroBig">0</span><span class="unit">명</span></div>
+        <div class="hero-panel-row" id="heroMini"></div>
+        <span class="hero-mark"></span>
+      </div>
+    </div>
     <div class="stats" id="statTiles"></div>
     <div class="card">
       <h3 style="justify-content:space-between">
@@ -542,6 +572,18 @@ async function renderDash(){
   const regM=sum(R,'등록남'), regF=sum(R,'등록여'), reg=sum(R,'등록');
   const ref=sum(R,'환불'); const newc=sum(R,'신규');
   const 미등록 = R.totalRoster - reg;
+
+  // 히어로
+  document.getElementById('heroTitle').innerHTML=`${R.base||'(날짜 미정)'} <span class="grad">${R.season}시즌</span>`;
+  document.getElementById('heroSub').innerHTML=
+    `<span class="tag ${R.isPost?'post':'pre'}">${R.split}</span> · 집계축 ${R.isPost?'반별':'전형·계열별'} · 작성자 ${R.writer||'-'}`;
+  document.getElementById('heroBig').textContent=reg;
+  document.getElementById('heroMini').innerHTML=
+    `<div class="hp">총인원<b>${R.totalRoster}</b></div>`+
+    `<div class="hp">미등록<b>${미등록<0?0:미등록}</b></div>`+
+    `<div class="hp">신규<b>${newc}</b></div>`+
+    `<div class="hp">환불<b>${ref}</b></div>`;
+
   document.getElementById('statTiles').innerHTML=`
     ${tile('t',R.totalRoster,'총인원(모수)')}
     ${tile('g',reg,`금일 등록 (남${regM}/여${regF})`)}
