@@ -80,7 +80,8 @@ header .dot{display:inline-block;width:8px;height:8px;border-radius:50%;backgrou
 header .dot.off{background:var(--gold);box-shadow:0 0 0 3px rgba(169,120,27,.16)}
 
 nav{display:flex;gap:2px;padding:0 22px;border-bottom:1px solid var(--line);background:rgba(255,255,255,.32);backdrop-filter:blur(10px);position:sticky;top:62px;z-index:19}
-nav button{background:none;border:0;color:var(--muted);padding:13px 16px;font-size:15.5px;font-weight:600;border-bottom:2px solid transparent;transition:.12s}
+nav button{display:inline-flex;align-items:center;gap:7px;background:none;border:0;color:var(--muted);padding:13px 16px;font-size:15.5px;font-weight:600;border-bottom:2px solid transparent;transition:.12s}
+nav button svg{width:18px;height:18px}
 nav button.active{color:var(--teal-ink);border-bottom:2px solid var(--teal)}
 nav button:hover:not(.active){color:var(--ink)}
 
@@ -91,7 +92,7 @@ main{padding:26px 26px 60px;max-width:1280px;margin:0 auto}
 /* ===== Cards / controls ===== */
 .card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px 24px;margin-bottom:18px;box-shadow:var(--shadow-sm)}
 .card h3{font-size:16.5px;letter-spacing:-.01em;margin-bottom:4px;display:flex;align-items:center;gap:8px}
-.card h3 .pin{color:var(--teal)}
+.pin{display:inline-block;width:3px;height:16px;border-radius:2px;background:var(--teal);vertical-align:-3px;margin-right:4px}
 .card .desc{color:var(--muted);font-size:14.5px;margin-bottom:16px}
 .row{display:flex;gap:14px;flex-wrap:wrap;align-items:flex-end}
 .field{display:flex;flex-direction:column;gap:6px}
@@ -184,9 +185,9 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 </header>
 
 <nav>
-  <button data-tab="dash" class="active">📊 대시보드</button>
-  <button data-tab="input">📥 일일명단 입력</button>
-  <button data-tab="raw">📋 raw 출력</button>
+  <button data-tab="dash" class="active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9"/><rect x="14" y="3" width="7" height="5"/><rect x="14" y="12" width="7" height="9"/><rect x="3" y="16" width="7" height="5"/></svg>대시보드</button>
+  <button data-tab="input"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>일일명단 입력</button>
+  <button data-tab="raw"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/></svg>raw 출력</button>
 </nav>
 
 <main>
@@ -194,7 +195,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <!-- ===== 입력 ===== -->
 <section class="tab" id="tab-input">
   <div class="card">
-    <h3><span class="pin">📌</span> 기준 날짜 & 시즌</h3>
+    <h3><span class="pin"></span> 기준 날짜 & 시즌</h3>
     <div class="desc">개강일 설정값과 비교해 <b>개강 전(전형·계열 단위)</b> / <b>개강 후(반 단위)</b>로 자동 분기합니다.</div>
     <div class="row">
       <div class="field"><label>기준 날짜</label><input type="date" id="baseDate"></div>
@@ -207,7 +208,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
   </div>
 
   <div class="card">
-    <h3><span class="pin">📁</span> 자료 업로드 (3종)</h3>
+    <h3><span class="pin"></span> 자료 업로드 (3종)</h3>
     <div class="desc">① 경영지원 일일등록명단 · ② 마스터(원생마스터: 성별·반 매핑) · ③ 경영지원 현황표 숫자(선택, 총인원·미납 검증용)</div>
     <div class="uploads">
       <label class="drop" id="dropDaily">
@@ -233,7 +234,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <!-- ===== 대시보드 ===== -->
 <section class="tab active" id="tab-dash">
   <div class="card" id="dashEmpty">
-    <h3><span class="pin">📊</span> 일일 등록 현황</h3>
+    <h3><span class="pin"></span> 일일 등록 현황</h3>
     <div class="desc">아직 처리된 자료가 없어요. <b>일일명단 입력</b> 탭에서 자료를 올리고 처리하면 여기 결과가 나옵니다.</div>
   </div>
 
@@ -241,10 +242,10 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
     <div class="stats" id="statTiles"></div>
     <div class="card">
       <h3 style="justify-content:space-between">
-        <span><span class="pin">📊</span> <span id="dashTitle"></span></span>
+        <span><span class="pin"></span> <span id="dashTitle"></span></span>
         <span>
-          <button class="btn" id="saveBtn">💾 현황 저장(공유)</button>
-          <button class="btn" id="loadPrevBtn">↩ 전일 불러오기</button>
+          <button class="btn" id="saveBtn">현황 저장(공유)</button>
+          <button class="btn" id="loadPrevBtn">전일 불러오기</button>
         </span>
       </h3>
       <div class="desc" id="dashMeta"></div>
@@ -259,10 +260,10 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <section class="tab" id="tab-raw">
   <div class="card">
     <h3 style="justify-content:space-between">
-      <span><span class="pin">📋</span> 등록파일 <code id="rawSheet">2026raw정규</code> 붙여넣기 행</span>
+      <span><span class="pin"></span> 등록파일 <code id="rawSheet">2026raw정규</code> 붙여넣기 행</span>
       <span>
-        <button class="btn pri" id="copyBtn">📑 복사</button>
-        <button class="btn" id="xlsxBtn">⬇ 엑셀</button>
+        <button class="btn pri" id="copyBtn">복사</button>
+        <button class="btn" id="xlsxBtn">엑셀 다운로드</button>
       </span>
     </h3>
     <div class="desc">아래 행을 그대로 복사해 등록파일 raw 시트 맨 아래에 붙여넣으면, 일자별확인·2026정규·일일보고가 자동 계산됩니다.</div>
@@ -275,7 +276,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <section class="tab" id="tab-set">
   <button class="backbtn" id="setBack">← 대시보드로 돌아가기</button>
   <div class="card">
-    <h3><span class="pin">⚙️</span> 개강일 & 코호트</h3>
+    <h3><span class="pin"></span> 개강일 & 코호트</h3>
     <div class="row">
       <div class="field"><label>정규 개강일</label><input type="date" id="cfgOpenReg"></div>
       <div class="field"><label>반수 개강일</label><input type="date" id="cfgOpenBan"></div>
@@ -286,7 +287,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
   </div>
 
   <div class="card">
-    <h3><span class="pin">🔑</span> 팀 비밀번호</h3>
+    <h3><span class="pin"></span> 팀 비밀번호</h3>
     <div class="desc">팀원이 입장할 때 쓰는 비번입니다. 평문이 아니라 해시로만 저장돼요.</div>
     <div class="row">
       <div class="field"><label>새 비밀번호</label><input type="password" id="cfgPw1"></div>
@@ -296,7 +297,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
   </div>
 
   <div class="card">
-    <h3><span class="pin">🔌</span> Firebase 연결</h3>
+    <h3><span class="pin"></span> Firebase 연결</h3>
     <div class="desc">팀 공유 저장소. <b>config 객체를 붙여넣고 저장</b>하면 이 브라우저에 기억됩니다. (배포 시엔 index.html 상단 상수에 직접 넣어도 됩니다.)</div>
     <div class="field" style="width:100%">
       <label>firebaseConfig (JSON)</label>
