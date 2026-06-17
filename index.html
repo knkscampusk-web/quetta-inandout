@@ -958,10 +958,13 @@ async function loadDaily(key){
 }
 
 /* ── 누적 raw 로그 (quettaReg_rawlog/{날짜} = 그날 raw 6블록 행들) ── */
+// Firestore는 중첩 배열 불가 → 각 행을 JSON 문자열로 저장/복원
+const packRows = rows => rows.map(r => JSON.stringify(r.map(c=>c===undefined?null:c)));
+const unpackRows = arr => Array.isArray(arr) ? arr.map(x => typeof x==='string' ? JSON.parse(x) : x) : [];
 // 그날 raw 행들을 누적 로그에 저장(덮어쓰기)
 async function saveRawlogDay(date, rows){
   if(!date||!fbReady) return;
-  try{ await setDoc(doc(db,COL('rawlog'),date), { date, rows, savedAt:Date.now() }); }
+  try{ await setDoc(doc(db,COL('rawlog'),date), { date, rows:packRows(rows), savedAt:Date.now() }); }
   catch(e){ console.error('rawlog 저장 실패', e); }
 }
 // 전체 누적 로그 읽어 HIST 구성
@@ -970,7 +973,7 @@ async function loadRawlogAll(){
   try{
     const snap=await getDocs(collection(db,COL('rawlog')));
     const byDate={};
-    snap.forEach(d=>{ const v=d.data(); if(v&&Array.isArray(v.rows)) byDate[v.date||d.id]={rows:v.rows, writer:''}; });
+    snap.forEach(d=>{ const v=d.data(); if(v&&Array.isArray(v.rows)) byDate[v.date||d.id]={rows:unpackRows(v.rows), writer:''}; });
     if(Object.keys(byDate).length){ HIST.byDate=byDate; HIST.dates=Object.keys(byDate).sort(); refreshHistUI(); return true; }
   }catch(e){ console.error('rawlog 로드 실패', e); }
   return false;
@@ -982,7 +985,7 @@ async function importRawlogToFirebase(byDate){
   try{
     let batch=writeBatch(db), n=0;
     for(const d of dates){
-      batch.set(doc(db,COL('rawlog'),d), { date:d, rows:byDate[d].rows, savedAt:Date.now() });
+      batch.set(doc(db,COL('rawlog'),d), { date:d, rows:packRows(byDate[d].rows), savedAt:Date.now() });
       if(++n%400===0){ await batch.commit(); batch=writeBatch(db); }
     }
     await batch.commit();
