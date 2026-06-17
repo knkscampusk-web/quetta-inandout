@@ -299,6 +299,15 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
       <div class="tablewrap"><table id="dashTable"></table></div>
       <div class="note">증감 = 금일 − 전일(공유 저장값). 미등록 = 총인원(마스터 재원) − 등록.</div>
     </div>
+
+    <div class="card">
+      <h3 style="justify-content:space-between">
+        <span><span class="pin"></span> 경영지원 현황 대조</span>
+        <button class="btn" id="verifyBtn">불러와 대조</button>
+      </h3>
+      <div class="desc">경영지원 등록관리 앱(Supabase)의 같은 날짜 합계와 자동 비교합니다. 읽기 전용이라 그쪽 데이터는 바뀌지 않아요.</div>
+      <div id="verifyBox"><div class="note">‘불러와 대조’를 누르면 경영지원 앱 값을 읽어와 비교합니다.</div></div>
+    </div>
   </div>
 </section>
 
@@ -408,6 +417,40 @@ const BUILTIN_CONFIG = {
 const NS = 'quettaReg_';
 const COL = name => NS + name;          // 컬렉션 이름
 const LK  = key  => NS + key;           // localStorage / sessionStorage 키
+
+/* ===================================================================
+ * 0-2) 경영지원 등록관리 앱 — Supabase 읽기 전용 (대조용)
+ *  - 그 앱의 공개 anon 키. 우리는 SELECT(읽기)만 한다.
+ * =================================================================== */
+const SB_URL = 'https://elqxailuuxkzddsujlmc.supabase.co';
+const SB_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVscXhhaWx1dXhremRkc3VqbG1jIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzQ5MzM4OTcsImV4cCI6MjA5MDUwOTg5N30.qTip7cpCxRu2vk9-dGGbiyxjsRFc0UbwJMFziYxlljI';
+let _sbState=null; // 캐시
+async function loadSbState(){
+  if(_sbState) return _sbState;
+  const { createClient } = await import('https://esm.sh/@supabase/supabase-js@2');
+  const sb = createClient(SB_URL, SB_ANON);
+  const { data, error } = await sb.from('quetta_state').select('data').eq('id',1).single();
+  if(error) throw error;
+  _sbState = data?.data || null;
+  return _sbState;
+}
+// 경영지원 앱의 같은 날짜 합계 계산 (읽기 데이터 기반)
+function sbTotalsForDate(st, date){
+  if(!st) return null;
+  const pays=Array.isArray(st.pays)?st.pays:[];
+  const refunds=Array.isArray(st.refunds)?st.refunds:[];
+  const snaps=st.snapshots||{};
+  const todayIn = pays.filter(p=>(p.uploadedDate||p.결제일자)===date && (p.환불금액||0)===0).length;
+  const todayRef = refunds.filter(r=>(r.processedDate || (r.processedAt? new Date(r.processedAt).toISOString().slice(0,10):'') )===date).length;
+  // 총인원(참고): 해당 날짜 스냅샷의 _grandTotal 우선, 없으면 내역 합
+  let grand=null;
+  if(snaps[date]){
+    if(snaps[date]._grandTotal!=null) grand=snaps[date]._grandTotal;
+    else grand=Object.entries(snaps[date]).filter(([k])=>!k.startsWith('_')).reduce((a,[,v])=>a+(v||0),0);
+  }
+  return { 금일등록:todayIn, 금일환불:todayRef, 총인원:grand };
+}
+
 
 let app=null, auth=null, db=null, fbReady=false;
 
@@ -677,6 +720,41 @@ async function renderDash(){
   if(!prev){ wb.innerHTML += `<div class="note">전일(${prevDateKey(R.base,R.season)}) 저장값이 없어 전일대비는 비어 있어요. 매일 ‘현황 저장’을 누르면 다음날 자동 비교됩니다.</div>`; }
 }
 function tile(c,v,l){ return `<div class="stat ${c}"><div class="v mono">${v}</div><div class="l">${l}</div></div>`; }
+
+// ── 경영지원(Supabase) 대조 ──
+function cmpRow(label, ours, theirs, note){
+  if(theirs==null) return `<tr><td>${label}</td><td class="mono">${ours}</td><td class="mono" style="color:var(--muted)">—</td><td>${note||'그쪽 값 없음'}</td></tr>`;
+  const diff=ours-theirs;
+  const ok=diff===0;
+  const mark=ok?'<span style="color:var(--green);font-weight:700">✅ 일치</span>'
+               :`<span style="color:var(--red);font-weight:700">⚠ 차이 ${diff>0?'+':''}${diff}</span>`;
+  return `<tr><td>${label}</td><td class="mono">${ours}</td><td class="mono">${theirs}</td><td>${mark}</td></tr>`;
+}
+async function runVerify(){
+  const R=STATE.result; const box=document.getElementById('verifyBox');
+  if(!R){ box.innerHTML='<div class="note">먼저 자료를 처리하세요.</div>'; return; }
+  box.innerHTML='<div class="note">경영지원 앱에서 불러오는 중…</div>';
+  const S2=(f)=>Object.values(R.perBan).reduce((a,b)=>a+(b[f]||0),0);
+  const ourReg=S2('등록'), ourRef=S2('환불'), ourTotal=R.totalRoster;
+  try{
+    const st=await loadSbState();
+    const t=sbTotalsForDate(st, R.base);
+    box.innerHTML=`
+      <div class="tablewrap"><table>
+        <thead><tr><th style="text-align:left">항목</th><th>우리 도구</th><th>경영지원 앱</th><th>대조</th></tr></thead>
+        <tbody>
+          ${cmpRow('금일 등록', ourReg, t?t.금일등록:null)}
+          ${cmpRow('금일 환불(퇴소)', ourRef, t?t.금일환불:null)}
+          ${cmpRow('총인원', ourTotal, t?t.총인원:null, '집계 기준이 달라 차이 날 수 있음(참고용)')}
+        </tbody>
+      </table></div>
+      <div class="note">날짜 ${R.base} 기준. 경영지원 앱은 기수·납부 기반, 우리는 반·전형 기반이라 총인원은 정의가 다를 수 있어요. 금일 등록/환불이 맞으면 핵심 검증은 통과예요.</div>`;
+  }catch(e){
+    console.error(e);
+    box.innerHTML=`<div class="warn"><b>불러오기 실패</b><br>${(e.code||e.message||e)}<br><span class="note">RLS(읽기 권한)가 막혀 있으면 담당자에게 anon 읽기 허용을 요청하세요.</span></div>`;
+  }
+}
+document.getElementById('verifyBtn').onclick=runVerify;
 
 /* ===================================================================
  * 6) 렌더 — raw 출력
