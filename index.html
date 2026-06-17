@@ -692,21 +692,26 @@ async function renderDash(){
   const S=(f)=>Object.values(R.perBan).reduce((a,b)=>a+(b[f]||0),0);
   const reg=S('등록'), regM=S('등록남'), regF=S('등록여'), ref=S('환불'), newc=S('신규');
 
-  // 미등록: 경영지원(Supabase) 누적 우선, 실패 시 베이스라인 폴백
-  const m=CFG.billMonth||0;
-  const bl=(CFG.baselines&&CFG.baselines[m])||{};
-  let 총인원 = bl.total || R.totalRoster;
-  let 미등록 = (bl.total!=null&&bl.reg!=null) ? (bl.total-bl.reg) : (총인원 - reg);  // 임시(폴백) 값
+  // 미등록: 경영지원(Supabase) 누적 우선 → 베이스라인 폴백. 출처를 화면에 표시.
+  const liveMonth = parseInt(document.getElementById('cfgBillMonth')?.value)||0;
+  const m = CFG.billMonth || liveMonth || 0;
+  const bl = (CFG.baselines && CFG.baselines[m]) || {};
+  const hasBL = (bl.total!=null && bl.total!=='' );
+  let 총인원 = hasBL ? bl.total : R.totalRoster;
 
-  // 히어로
+  // 히어로 상단
   document.getElementById('heroTitle').innerHTML=`${R.base||'(날짜 미정)'} <span class="grad">${R.season}시즌</span>`;
-  document.getElementById('heroSub').innerHTML=`작성자 ${R.writer||'-'} · 재등록 ${S('재등록')} · 편입 ${S('편입')} · 반수 ${S('반수')}${m?` · ${m}월분 집계`:''}`;
   document.getElementById('heroNew').textContent=newc;
   document.getElementById('heroOut').textContent=ref;
-  const drawMini=(unreg,cum)=>{
+
+  const drawMini=(unreg,cum,src)=>{
+    document.getElementById('heroSub').innerHTML=
+      `작성자 ${R.writer||'-'} · 재등록 ${S('재등록')} · 편입 ${S('편입')} · 반수 ${S('반수')}`+
+      (m?` · <b>${m}월분</b> 집계`:` · <b style="color:var(--red)">집계월 미설정</b>`)+
+      ` · 미등록 출처: ${src}`;
     document.getElementById('heroMini').innerHTML=
       `<div class="hp">총인원<b>${총인원}</b></div>`+
-      `<div class="hp">등록(누적)<b>${cum!=null?cum:reg}</b></div>`+
+      `<div class="hp">등록(누적)<b>${cum!=null?cum:(hasBL?bl.reg:reg)}</b></div>`+
       `<div class="hp">환불<b>${ref}</b></div>`+
       `<div class="hp">미등록<b>${unreg<0?0:unreg}</b></div>`;
     document.getElementById('statTiles').innerHTML=`
@@ -716,17 +721,32 @@ async function renderDash(){
       ${tile('r',ref,'금일 환불(퇴소)')}
       ${tile('',unreg<0?0:unreg,'미등록')}`;
   };
-  drawMini(미등록, null); // 우선 폴백값으로 즉시 표시
 
-  // 경영지원 누적을 비동기로 끌어와 갱신
+  // 즉시 표시 (베이스라인 또는 임시)
+  if(hasBL && bl.reg!=null){
+    drawMini(총인원 - bl.reg, bl.reg, '베이스라인');
+  } else if(!m){
+    drawMini(총인원 - reg, reg, '임시(집계월 미설정 — 설정에서 입력)');
+  } else {
+    drawMini(총인원 - reg, reg, '임시(베이스라인 미입력)');
+  }
+
+  // 경영지원 누적 비동기 갱신 (정확 일치 → 실패 시 "(N월)" 포함 매칭)
   if(m){
     (async()=>{
       try{
         const st=await loadSbState();
         const gisu=gisuName(m);
         const pays=Array.isArray(st.pays)?st.pays:[];
-        const cum=pays.filter(p=>p.내역===gisu && (p.환불금액||0)===0 && p.status!=='퇴소').length;
-        if(cum>0){ const unreg=총인원-cum; drawMini(unreg, cum); }
+        const act=p=>(p.환불금액||0)===0 && p.status!=='퇴소';
+        let cum=pays.filter(p=>p.내역===gisu && act(p)).length;
+        let matched=cum>0;
+        if(!matched){ // 포함 매칭 폴백
+          cum=pays.filter(p=>typeof p.내역==='string' && p.내역.includes(`(${m}월)`) && act(p)).length;
+          matched=cum>0;
+        }
+        if(matched){ drawMini(총인원-cum, cum, `경영지원 앱(${gisu})`); }
+        else { drawMini(총인원-(hasBL?bl.reg:reg), (hasBL?bl.reg:reg), `경영지원 매칭 실패 — 베이스라인 사용`); }
       }catch(e){ /* 폴백 유지 */ }
     })();
   }
