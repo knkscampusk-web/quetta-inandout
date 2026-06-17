@@ -439,7 +439,7 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, getDoc, setDoc, getDocs, collection, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 /* ===================================================================
  * 0) Firebase 설정
@@ -943,6 +943,8 @@ async function saveDaily(){
   if(!fbReady){ toast('⚠ Firebase 미연결 — 로컬에만 저장됨'); return; }
   try{
     await setDoc(doc(db,COL('daily'),dayKey(R.base,R.season)),payload);
+    // 그날 raw 6블록도 누적 로그에 저장(지난 등록 보기 자동 누적)
+    if(R.season!=='반수'){ await saveRawlogDay(R.base, rawRows()); }
     toast('✅ Firebase 저장 완료(공유)');
   }catch(e){
     console.error(e);
@@ -953,6 +955,50 @@ async function loadDaily(key){
   if(!key) return null;
   if(fbReady){ try{ const s=await getDoc(doc(db,COL('daily'),key)); if(s.exists()) return s.data(); }catch(e){} }
   try{ return JSON.parse(localStorage.getItem(LK('daily_')+key)||'null'); }catch(e){ return null; }
+}
+
+/* ── 누적 raw 로그 (quettaReg_rawlog/{날짜} = 그날 raw 6블록 행들) ── */
+// 그날 raw 행들을 누적 로그에 저장(덮어쓰기)
+async function saveRawlogDay(date, rows){
+  if(!date||!fbReady) return;
+  try{ await setDoc(doc(db,COL('rawlog'),date), { date, rows, savedAt:Date.now() }); }
+  catch(e){ console.error('rawlog 저장 실패', e); }
+}
+// 전체 누적 로그 읽어 HIST 구성
+async function loadRawlogAll(){
+  if(!fbReady) return false;
+  try{
+    const snap=await getDocs(collection(db,COL('rawlog')));
+    const byDate={};
+    snap.forEach(d=>{ const v=d.data(); if(v&&Array.isArray(v.rows)) byDate[v.date||d.id]={rows:v.rows, writer:''}; });
+    if(Object.keys(byDate).length){ HIST.byDate=byDate; HIST.dates=Object.keys(byDate).sort(); refreshHistUI(); return true; }
+  }catch(e){ console.error('rawlog 로드 실패', e); }
+  return false;
+}
+// 최초 업로드분을 날짜별 문서로 일괄 저장(배치)
+async function importRawlogToFirebase(byDate){
+  if(!fbReady){ toast('⚠ Firebase 미연결 — 누적 저장 불가'); return false; }
+  const dates=Object.keys(byDate);
+  try{
+    let batch=writeBatch(db), n=0;
+    for(const d of dates){
+      batch.set(doc(db,COL('rawlog'),d), { date:d, rows:byDate[d].rows, savedAt:Date.now() });
+      if(++n%400===0){ await batch.commit(); batch=writeBatch(db); }
+    }
+    await batch.commit();
+    return true;
+  }catch(e){ console.error(e); toast('⚠ 누적 저장 실패: '+(e.code||e.message)); return false; }
+}
+// 드롭다운/안내 갱신 (지난 등록 보기 탭 + 설정 탭)
+function refreshHistUI(){
+  const sel=document.getElementById('histDate'); const btn=document.getElementById('histViewBtn');
+  if(!HIST.dates.length) return;
+  sel.innerHTML=HIST.dates.map(d=>`<option value="${d}">${d}</option>`).join('');
+  sel.value=HIST.dates[HIST.dates.length-1];
+  sel.disabled=false; btn.disabled=false;
+  const msg=`${HIST.dates.length}개 날짜 (${HIST.dates[0]} ~ ${HIST.dates[HIST.dates.length-1]})`;
+  const hn=document.getElementById('histNote'); if(hn) hn.textContent=msg;
+  const hn2=document.getElementById('histNote2'); if(hn2) hn2.textContent='✅ 누적 로그 '+msg;
 }
 document.getElementById('saveBtn').onclick=saveDaily;
 document.getElementById('loadPrevBtn').onclick=()=>renderDash();
@@ -1123,6 +1169,12 @@ const RAW_IDX={날짜:0,구분:1,전형:2,계열:3,반:4,편성:5,접수:6,접�
 function normDate(v){
   if(v==null||v==='') return '';
   if(v instanceof Date) return `${v.getFullYear()}-${String(v.getMonth()+1).padStart(2,'0')}-${String(v.getDate()).padStart(2,'0')}`;
+  // 엑셀 시리얼 날짜 숫자 (예: 46189.0006 → 2026-06-16)
+  const nv=(typeof v==='number')?v:(/^\d+(\.\d+)?$/.test(String(v).trim())?parseFloat(v):NaN);
+  if(!isNaN(nv) && nv>30000 && nv<80000){
+    const d=new Date(Math.round((nv-25569)*86400000));
+    return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+  }
   let s=String(v).trim();
   // "2026. 6. 16" / "2026-06-16" / "2026/6/16"
   const m=s.match(/(\d{4})[.\-/]\s*(\d{1,2})[.\-/]\s*(\d{1,2})/);
@@ -1199,17 +1251,23 @@ function buildResultFromRaw(date, rowsForDate, prevBan){
         const wb=XLSX.read(buf,{type:'array',cellDates:true});
         // 2026raw정규 시트 우선
         const sn=wb.SheetNames.find(n=>n.includes('raw정규'))||wb.SheetNames[0];
-        rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:true});
+        rows=XLSX.utils.sheet_to_json(wb.Sheets[sn],{header:1,defval:'',raw:false,cellDates:true});
       }
       HIST.byDate=parseRawLog(rows);
       HIST.dates=Object.keys(HIST.byDate).sort();
       if(!HIST.dates.length){ toast('raw 로그에서 날짜를 못 찾았어요'); return; }
-      sel.innerHTML=HIST.dates.map(d=>`<option value="${d}">${d}</option>`).join('');
-      sel.value=HIST.dates[HIST.dates.length-1];
-      sel.disabled=false; btn.disabled=false;
-      const msg=`${HIST.dates.length}개 날짜 로드됨 (${HIST.dates[0]} ~ ${HIST.dates[HIST.dates.length-1]})`;
-      document.getElementById('histNote').textContent=msg;
-      const hn2=document.getElementById('histNote2'); if(hn2) hn2.textContent='✅ '+msg+' — 지난 등록 보기 탭에서 날짜를 고르세요.';
+      refreshHistUI();
+      // Firebase 누적 로그에 저장 (이후엔 업로드 없이 자동 복원)
+      if(fbReady){
+        const ok=confirm(`최초 raw 로그 ${HIST.dates.length}일치를 팀 공유(Firebase)에 저장할까요?\n이후엔 매일 ‘현황 저장’만 누르면 자동 누적되고, 다시 올릴 필요 없어요.`);
+        if(ok){
+          const hn2=document.getElementById('histNote2'); if(hn2) hn2.textContent='Firebase에 저장 중…';
+          const done=await importRawlogToFirebase(HIST.byDate);
+          if(done){ toast(`✅ 누적 로그 ${HIST.dates.length}일치 저장됨(공유)`); refreshHistUI(); }
+        }
+      } else {
+        toast('⚠ Firebase 미연결 — 이번 세션에서만 보기 가능');
+      }
     }catch(e){ console.error(e); toast('raw 로그 읽기 실패'); drop.classList.remove('ok'); }
   }
   input.addEventListener('change',e=>handle(e.target.files[0]));
@@ -1233,6 +1291,7 @@ function buildResultFromRaw(date, rowsForDate, prevBan){
 (async function(){
   await initFirebase();
   await loadCfg();
+  await loadRawlogAll();   // 누적 raw 로그 자동 복원 (지난 등록 보기)
   updateSplitTag();
   // 이미 이번 세션에 들어왔다면 게이트 패스
   if(sessionStorage.getItem(LK('in'))==='1') openApp();
