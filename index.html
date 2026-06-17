@@ -335,16 +335,10 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <section class="tab" id="tab-hist">
   <div class="card">
     <h3><span class="pin"></span> 지난 등록 보기</h3>
-    <div class="desc">2026raw정규 시트를 CSV로 내려받아 올리면, 날짜를 골라 그날의 등록 현황을 당일과 같은 화면으로 봅니다.</div>
-    <div class="uploads" style="grid-template-columns:1fr">
-      <label class="drop" id="dropHist">
-        <input type="file" accept=".csv,.xlsx,.xls" hidden id="fileHist">
-        <b>raw 로그 업로드 (2026raw정규 CSV/엑셀)</b><br><span class="fn" id="nameHist">파일 선택 / 끌어놓기</span>
-      </label>
-    </div>
+    <div class="desc">날짜를 골라 그날의 등록 현황을 당일과 같은 화면으로 봅니다. <b>raw 로그 파일은 설정 탭에서 올려주세요.</b></div>
     <div class="row" style="margin-top:14px;align-items:center">
       <div class="field" style="min-width:220px"><label>날짜 선택</label>
-        <select id="histDate" disabled><option>먼저 raw 로그를 올리세요</option></select>
+        <select id="histDate" disabled><option>설정 탭에서 raw 로그를 먼저 올리세요</option></select>
       </div>
       <button class="btn pri" id="histViewBtn" disabled>이 날짜 현황 보기</button>
       <span class="note" id="histNote"></span>
@@ -355,6 +349,17 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 <!-- ===== 설정 ===== -->
 <section class="tab" id="tab-set">
   <button class="backbtn" id="setBack">← 대시보드로 돌아가기</button>
+  <div class="card">
+    <h3><span class="pin"></span> 지난 등록 로그 업로드</h3>
+    <div class="desc">2026raw정규 시트를 CSV/엑셀로 올리면, ‘지난 등록 보기’ 탭에서 날짜를 골라 그날 현황을 볼 수 있어요.</div>
+    <div class="uploads" style="grid-template-columns:1fr">
+      <label class="drop" id="dropHist">
+        <input type="file" accept=".csv,.xlsx,.xls" hidden id="fileHist">
+        <b>raw 로그 업로드 (2026raw정규 CSV/엑셀)</b><br><span class="fn" id="nameHist">파일 선택 / 끌어놓기</span>
+      </label>
+    </div>
+    <div class="note" id="histNote2"></div>
+  </div>
   <div class="card">
     <h3><span class="pin"></span> 개강일 & 코호트</h3>
     <div class="row">
@@ -1202,7 +1207,9 @@ function buildResultFromRaw(date, rowsForDate, prevBan){
       sel.innerHTML=HIST.dates.map(d=>`<option value="${d}">${d}</option>`).join('');
       sel.value=HIST.dates[HIST.dates.length-1];
       sel.disabled=false; btn.disabled=false;
-      document.getElementById('histNote').textContent=`${HIST.dates.length}개 날짜 로드됨 (${HIST.dates[0]} ~ ${HIST.dates[HIST.dates.length-1]})`;
+      const msg=`${HIST.dates.length}개 날짜 로드됨 (${HIST.dates[0]} ~ ${HIST.dates[HIST.dates.length-1]})`;
+      document.getElementById('histNote').textContent=msg;
+      const hn2=document.getElementById('histNote2'); if(hn2) hn2.textContent='✅ '+msg+' — 지난 등록 보기 탭에서 날짜를 고르세요.';
     }catch(e){ console.error(e); toast('raw 로그 읽기 실패'); drop.classList.remove('ok'); }
   }
   input.addEventListener('change',e=>handle(e.target.files[0]));
