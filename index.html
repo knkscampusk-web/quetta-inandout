@@ -352,6 +352,26 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
       </div>
     </div>
     <div class="note">등록·환불이 없는 반/전형도 raw에 항상 0으로 출력됩니다. 비워두면 그날 자료에 등장한 항목만 출력해요.</div>
+  </div>
+
+  <div class="card">
+    <h3><span class="pin"></span> 재등록 집계 & 미등록 베이스라인</h3>
+    <div class="desc">매달 재등록 기간이 시작되면 <b>현재 집계월</b>을 바꾸세요. 미등록 누적은 경영지원 앱에서 자동으로 끌어오고, 못 가져올 때만 아래 베이스라인을 씁니다.</div>
+    <div class="row">
+      <div class="field"><label>현재 집계월 (숫자, 예: 7)</label><input type="number" id="cfgBillMonth" min="1" max="12" placeholder="7"></div>
+      <div class="field"><label>경영지원 기수 매핑 (자동)</label><input id="cfgGisuPreview" disabled placeholder="집계월 입력 시 표시"></div>
+    </div>
+    <div class="note" style="margin-top:6px">매핑 규칙: <b>N월분 → 정규(N−2)기(N월)</b> · 예: 7월분 → 정규5기(7월)</div>
+
+    <div class="note" style="margin-top:14px;font-weight:700;color:var(--ink)">베이스라인 (경영지원 연동 실패 시 폴백) — 현재 집계월 <span id="blMonthTag">-</span> 기준</div>
+    <div class="row" style="margin-top:6px">
+      <div class="field"><label>총인원</label><input type="number" id="cfgBlTotal" placeholder="740"></div>
+      <div class="field"><label>등록인원(누적)</label><input type="number" id="cfgBlReg" placeholder="653"></div>
+      <div class="field"><label>미등록인원</label><input type="number" id="cfgBlUnreg" placeholder="87"></div>
+      <button class="btn pri" id="cfgBaseSaveBtn">집계설정 저장(공유)</button>
+    </div>
+    <div class="note">베이스라인은 <b>집계월마다 따로</b> 저장됩니다. 7월분으로 바꾸면 7월 베이스라인을 새로 입력하세요.</div>
+  </div>
 
   <div class="card">
     <h3><span class="pin"></span> 팀 비밀번호</h3>
@@ -671,25 +691,45 @@ async function renderDash(){
 
   const S=(f)=>Object.values(R.perBan).reduce((a,b)=>a+(b[f]||0),0);
   const reg=S('등록'), regM=S('등록남'), regF=S('등록여'), ref=S('환불'), newc=S('신규');
-  const 미등록 = R.totalRoster - reg;
+
+  // 미등록: 경영지원(Supabase) 누적 우선, 실패 시 베이스라인 폴백
+  const m=CFG.billMonth||0;
+  const bl=(CFG.baselines&&CFG.baselines[m])||{};
+  let 총인원 = bl.total || R.totalRoster;
+  let 미등록 = (bl.total!=null&&bl.reg!=null) ? (bl.total-bl.reg) : (총인원 - reg);  // 임시(폴백) 값
 
   // 히어로
   document.getElementById('heroTitle').innerHTML=`${R.base||'(날짜 미정)'} <span class="grad">${R.season}시즌</span>`;
-  document.getElementById('heroSub').innerHTML=`작성자 ${R.writer||'-'} · 재등록 ${S('재등록')} · 편입 ${S('편입')} · 반수 ${S('반수')}`;
+  document.getElementById('heroSub').innerHTML=`작성자 ${R.writer||'-'} · 재등록 ${S('재등록')} · 편입 ${S('편입')} · 반수 ${S('반수')}${m?` · ${m}월분 집계`:''}`;
   document.getElementById('heroNew').textContent=newc;
   document.getElementById('heroOut').textContent=ref;
-  document.getElementById('heroMini').innerHTML=
-    `<div class="hp">총인원<b>${R.totalRoster}</b></div>`+
-    `<div class="hp">등록<b>${reg}</b></div>`+
-    `<div class="hp">환불<b>${ref}</b></div>`+
-    `<div class="hp">미등록<b>${미등록<0?0:미등록}</b></div>`;
+  const drawMini=(unreg,cum)=>{
+    document.getElementById('heroMini').innerHTML=
+      `<div class="hp">총인원<b>${총인원}</b></div>`+
+      `<div class="hp">등록(누적)<b>${cum!=null?cum:reg}</b></div>`+
+      `<div class="hp">환불<b>${ref}</b></div>`+
+      `<div class="hp">미등록<b>${unreg<0?0:unreg}</b></div>`;
+    document.getElementById('statTiles').innerHTML=`
+      ${tile('t',총인원,'총인원(모수)')}
+      ${tile('g',reg,`금일 등록 (남${regM}/여${regF})`)}
+      ${tile('y',newc,'신규')}
+      ${tile('r',ref,'금일 환불(퇴소)')}
+      ${tile('',unreg<0?0:unreg,'미등록')}`;
+  };
+  drawMini(미등록, null); // 우선 폴백값으로 즉시 표시
 
-  document.getElementById('statTiles').innerHTML=`
-    ${tile('t',R.totalRoster,'총인원(모수)')}
-    ${tile('g',reg,`금일 등록 (남${regM}/여${regF})`)}
-    ${tile('y',newc,'신규')}
-    ${tile('r',ref,'금일 환불(퇴소)')}
-    ${tile('',미등록<0?0:미등록,'미등록(=총−등록)')}`;
+  // 경영지원 누적을 비동기로 끌어와 갱신
+  if(m){
+    (async()=>{
+      try{
+        const st=await loadSbState();
+        const gisu=gisuName(m);
+        const pays=Array.isArray(st.pays)?st.pays:[];
+        const cum=pays.filter(p=>p.내역===gisu && (p.환불금액||0)===0 && p.status!=='퇴소').length;
+        if(cum>0){ const unreg=총인원-cum; drawMini(unreg, cum); }
+      }catch(e){ /* 폴백 유지 */ }
+    })();
+  }
 
   // 반별 표
   const rowsH=[];
@@ -848,7 +888,7 @@ document.getElementById('loadPrevBtn').onclick=()=>renderDash();
 /* ===================================================================
  * 8) 설정 / config
  * =================================================================== */
-let CFG={openReg:'',openBan:'',writer:'',banList:[],jhList:[]};
+let CFG={openReg:'',openBan:'',writer:'',banList:[],jhList:[],billMonth:null,baselines:{}};
 const parseList = s => (s||'').split(/[,\n]/).map(x=>x.trim()).filter(Boolean);
 async function loadCfg(){
   let c=null;
@@ -857,14 +897,30 @@ async function loadCfg(){
   if(c){ CFG={...CFG,...c}; }
   if(!Array.isArray(CFG.banList)) CFG.banList=[];
   if(!Array.isArray(CFG.jhList)) CFG.jhList=[];
+  if(typeof CFG.baselines!=='object'||!CFG.baselines) CFG.baselines={};
   document.getElementById('cfgOpenReg').value=CFG.openReg||'';
   document.getElementById('cfgOpenBan').value=CFG.openBan||'';
   document.getElementById('cfgWriter').value=CFG.writer||'';
   document.getElementById('cfgBanList').value=(CFG.banList||[]).join(', ');
   document.getElementById('cfgJhList').value=(CFG.jhList||[]).join(', ');
+  document.getElementById('cfgBillMonth').value=CFG.billMonth||'';
+  syncBaselineFields();
   if(CFG.writer) document.getElementById('writer').value=CFG.writer;
   document.getElementById('cfgFb').value = localStorage.getItem(LK('fb'))||'';
 }
+// 기수 매핑: N월분 → 정규(N-2)기(N월)
+function gisuName(m){ m=parseInt(m); if(!m) return ''; return `정규${m-2}기(${m}월)`; }
+// 현재 집계월의 베이스라인을 입력칸에 반영
+function syncBaselineFields(){
+  const m=parseInt(document.getElementById('cfgBillMonth').value)||CFG.billMonth||0;
+  document.getElementById('cfgGisuPreview').value = m?gisuName(m):'';
+  document.getElementById('blMonthTag').textContent = m?`${m}월분`:'-';
+  const bl=(CFG.baselines&&CFG.baselines[m])||{};
+  document.getElementById('cfgBlTotal').value = bl.total??'';
+  document.getElementById('cfgBlReg').value   = bl.reg??'';
+  document.getElementById('cfgBlUnreg').value = bl.unreg??'';
+}
+document.getElementById('cfgBillMonth').addEventListener('input',syncBaselineFields);
 document.getElementById('cfgSaveBtn').onclick=async()=>{
   CFG.openReg=document.getElementById('cfgOpenReg').value;
   CFG.openBan=document.getElementById('cfgOpenBan').value;
@@ -877,6 +933,23 @@ document.getElementById('cfgSaveBtn').onclick=async()=>{
   if(!fbReady){ toast('⚠ Firebase 미연결 — 로컬에만 저장됨'); return; }
   try{ await setDoc(doc(db,COL('config'),'app'),CFG,{merge:true}); toast('✅ 설정 저장됨(공유)'); }
   catch(e){ console.error(e); toast('⚠ 설정 저장 실패: '+(e.code||e.message)); }
+};
+document.getElementById('cfgBaseSaveBtn').onclick=async()=>{
+  const m=parseInt(document.getElementById('cfgBillMonth').value)||0;
+  if(!m){ toast('현재 집계월을 먼저 입력하세요'); return; }
+  CFG.billMonth=m;
+  if(!CFG.baselines) CFG.baselines={};
+  CFG.baselines[m]={
+    total:parseInt(document.getElementById('cfgBlTotal').value)||0,
+    reg:parseInt(document.getElementById('cfgBlReg').value)||0,
+    unreg:parseInt(document.getElementById('cfgBlUnreg').value)||0
+  };
+  localStorage.setItem(LK('cfg'),JSON.stringify(CFG));
+  syncBaselineFields();
+  if(STATE.result) renderDash();
+  if(!fbReady){ toast('⚠ Firebase 미연결 — 로컬에만 저장됨'); return; }
+  try{ await setDoc(doc(db,COL('config'),'app'),CFG,{merge:true}); toast(`✅ ${m}월분 집계설정 저장됨(공유)`); }
+  catch(e){ console.error(e); toast('⚠ 저장 실패: '+(e.code||e.message)); }
 };
 document.getElementById('cfgPwBtn').onclick=async()=>{
   const a=document.getElementById('cfgPw1').value, b=document.getElementById('cfgPw2').value;
