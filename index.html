@@ -333,9 +333,9 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
 
 <!-- ===== 지난 등록 보기 ===== -->
 <section class="tab" id="tab-hist">
-  <div class="card">
+  <div class="card" id="histList">
     <h3><span class="pin"></span> 지난 등록 보기</h3>
-    <div class="desc">날짜를 골라 그날의 등록 현황을 당일과 같은 화면으로 봅니다. <b>raw 로그 파일은 설정 탭에서 올려주세요.</b></div>
+    <div class="desc">날짜를 골라 그날의 등록 현황을 봅니다 (선택일까지 누적 반영). <b>raw 로그 파일은 설정 탭에서 올려주세요.</b></div>
     <div class="row" style="margin-top:14px;align-items:center">
       <div class="field" style="min-width:220px"><label>날짜 선택</label>
         <select id="histDate" disabled><option>설정 탭에서 raw 로그를 먼저 올리세요</option></select>
@@ -343,6 +343,10 @@ code{background:var(--teal-soft);border:1px solid rgba(0,178,190,.22);padding:1p
       <button class="btn pri" id="histViewBtn" disabled>이 날짜 현황 보기</button>
       <span class="note" id="histNote"></span>
     </div>
+  </div>
+  <div id="histView" style="display:none">
+    <button class="backbtn" id="histBack">← 날짜 목록으로</button>
+    <div id="histBody"></div>
   </div>
 </section>
 
@@ -835,17 +839,14 @@ function cmpRow(label, ours, theirs, note){
                :`<span style="color:var(--red);font-weight:700">⚠ 차이 ${diff>0?'+':''}${diff}</span>`;
   return `<tr><td>${label}</td><td class="mono">${ours}</td><td class="mono">${theirs}</td><td>${mark}</td></tr>`;
 }
-async function runVerify(){
-  const R=STATE.result; const box=document.getElementById('verifyBox');
+async function verifyInto(R, box){
   if(!R){ box.innerHTML='<div class="note">먼저 자료를 처리하세요.</div>'; return; }
   box.innerHTML='<div class="note">경영지원 앱에서 불러오는 중…</div>';
   const S2=(f)=>Object.values(R.perBan).reduce((a,b)=>a+(b[f]||0),0);
   const ourReg=S2('재등록'), ourRef=S2('퇴소');
-  // 총인원: 마스터(745) 대신 집계월 베이스라인 기준
-  const _m=CFG.billMonth||parseInt(document.getElementById('cfgBillMonth')?.value)||0;
-  const _bl=(CFG.baselines&&CFG.baselines[_m])||{};
-  const ourTotal=(_bl.total!=null&&_bl.total!=='')?_bl.total:null;
-  const totalNote=ourTotal==null?'베이스라인 미설정 — 설정에서 입력':'베이스라인 기준(집계월)';
+  // 총인원: 등록계(누적) 기준 — 히어로와 동일
+  const ourTotal=S2('등록계')||null;
+  const totalNote='등록계(누적) 기준';
   try{
     const st=await loadSbState();
     const t=sbTotalsForDate(st, R.base);
@@ -855,16 +856,16 @@ async function runVerify(){
         <tbody>
           ${cmpRow('금일 등록', ourReg, t?t.금일등록:null)}
           ${cmpRow('금일 환불(퇴소)', ourRef, t?t.금일환불:null)}
-          ${cmpRow('총인원', ourTotal==null?'—':ourTotal, t?t.총인원:null, totalNote)}
+          ${cmpRow('총인원(등록계)', ourTotal==null?'—':ourTotal, t?t.총인원:null, totalNote)}
         </tbody>
       </table></div>
-      <div class="note">날짜 ${R.base} 기준. 경영지원 앱은 기수·납부 기반, 우리는 반·전형 기반이라 총인원은 정의가 다를 수 있어요. 금일 등록/환불이 맞으면 핵심 검증은 통과예요.</div>`;
+      <div class="note">날짜 ${R.base} 기준. 경영지원 앱은 기수·납부 기반이라 정의 차이가 날 수 있어요. 금일 등록/환불이 맞으면 핵심 검증은 통과예요.</div>`;
   }catch(e){
     console.error(e);
     box.innerHTML=`<div class="warn"><b>불러오기 실패</b><br>${(e.code||e.message||e)}<br><span class="note">RLS(읽기 권한)가 막혀 있으면 담당자에게 anon 읽기 허용을 요청하세요.</span></div>`;
   }
 }
-document.getElementById('verifyBtn').onclick=runVerify;
+async function runVerify(){ return verifyInto(STATE.result, document.getElementById('verifyBox')); }
 
 /* ===================================================================
  * 6) 렌더 — raw 출력
@@ -1234,6 +1235,68 @@ function buildResultFromRaw(date, rowsForDate, prevBan){
            perBan, perJh, totalRoster:0, reg, ref, newc, warnings:[],
            _historical:true, _prevBan: prevBan||null };
 }
+// 선택일까지 누적 반영한 결과 (편성계·등록계·미납)
+function buildCumulativeResult(date){
+  const day=buildResultFromRaw(date, HIST.byDate[date].rows, null);
+  const dates=HIST.dates.filter(d=>d<=date);
+  const cumReg={};
+  for(const d of dates){
+    const r=buildResultFromRaw(d, HIST.byDate[d].rows, null);
+    for(const ban in r.perBan){
+      cumReg[ban]=(cumReg[ban]||0)+(r.perBan[ban].재등록||0)-(r.perBan[ban].재등록환불||0);
+    }
+  }
+  for(const ban in day.perBan){
+    const b=day.perBan[ban];
+    b.전일편성=b.편성||0;
+    b.편성계=(b.편성||0)+(b.신규||0)-(b.퇴소||0);   // raw 편성은 전일편성(누적 carried)
+    b.등록계=cumReg[ban]||0;                          // 재등록 누적
+    b.전일등록=b.등록계-(b.재등록||0)+(b.재등록환불||0);
+    b.미납=b.편성계-b.등록계;
+  }
+  day._cumulative=true;
+  return day;
+}
+// 지난 등록 보기 — 탭 내부 자체 렌더 (두 축 표 + 대조)
+function renderHist(R){
+  const banAll=[...R.banList,'미배정'];
+  const sum=f=>banAll.reduce((a,b)=>a+((R.perBan[b]&&R.perBan[b][f])||0),0);
+  const cell=v=>`<td class="mono">${v||''}</td>`, neg=v=>`<td class="mono">${v?'-'+v:''}</td>`;
+  // 표1 편성현황
+  let t1=banAll.map(ban=>{const b=R.perBan[ban];if(!b)return'';return `<tr><td>${ban}</td>
+    <td class="mono">${b.전일편성}</td>${cell(b.신규)}${neg(b.퇴소)}<td class="mono"><b>${b.편성계}</b></td>
+    ${cell(b.신규남)}${neg(b.퇴소남)}${cell(b.신규여)}${neg(b.퇴소여)}</tr>`;}).join('');
+  t1+=`<tr class="tot"><td>소계</td><td class="mono">${sum('전일편성')}</td><td class="mono">${sum('신규')}</td><td class="mono">${sum('퇴소')?'-'+sum('퇴소'):'0'}</td><td class="mono"><b>${sum('편성계')}</b></td><td class="mono">${sum('신규남')}</td><td class="mono">${sum('퇴소남')?'-'+sum('퇴소남'):'0'}</td><td class="mono">${sum('신규여')}</td><td class="mono">${sum('퇴소여')?'-'+sum('퇴소여'):'0'}</td></tr>`;
+  // 표2 재등록
+  let t2=banAll.map(ban=>{const b=R.perBan[ban];if(!b)return'';return `<tr><td>${ban}</td>
+    <td class="mono">${b.전일등록}</td>${cell(b.재등록)}${neg(b.재등록환불)}<td class="mono"><b>${b.등록계}</b></td>
+    ${cell(b.재등록남)}${cell(b.재등록여)}<td class="mono ${b.미납>0?'neg':''}"><b>${b.미납}</b></td></tr>`;}).join('');
+  t2+=`<tr class="tot"><td>소계</td><td class="mono">${sum('전일등록')}</td><td class="mono">${sum('재등록')}</td><td class="mono">${sum('재등록환불')?'-'+sum('재등록환불'):'0'}</td><td class="mono"><b>${sum('등록계')}</b></td><td class="mono">${sum('재등록남')}</td><td class="mono">${sum('재등록여')}</td><td class="mono"><b>${sum('미납')}</b></td></tr>`;
+
+  document.getElementById('histBody').innerHTML=`
+    <div class="card">
+      <h3><span class="pin"></span> ${R.base} 현황 <span class="tag" style="background:var(--peri-soft);color:var(--peri-ink)">과거 · 누적</span></h3>
+      <div class="desc">작성자 ${R.writer||'-'} · 선택일까지 누적 반영 · 편입 ${sum('편입')} · 반수 ${sum('반수')}</div>
+      <div class="stats">
+        ${tile('g',sum('신규'),`그날 신규 (남${sum('신규남')}/여${sum('신규여')})`)}
+        ${tile('r',sum('퇴소'),`그날 퇴소 (남${sum('퇴소남')}/여${sum('퇴소여')})`)}
+        ${tile('t',sum('편성계'),'편성계(누적)')}
+        ${tile('y',sum('등록계'),'등록계(누적)')}
+        ${tile('',sum('미납')<0?0:sum('미납'),'미납(미등록)')}
+      </div>
+      <div class="note" style="font-weight:700;color:var(--ink);margin:14px 0 6px">① 편성현황 (신규 − 퇴소)</div>
+      <div class="tablewrap"><table><thead><tr><th>반</th><th>전일편성</th><th>신규</th><th>퇴소</th><th>편성계</th><th>신규-남</th><th>퇴소-남</th><th>신규-여</th><th>퇴소-여</th></tr></thead><tbody>${t1}</tbody></table></div>
+      <div class="note" style="font-weight:700;color:var(--ink);margin:18px 0 6px">② 재등록 (등록 − 미등록)</div>
+      <div class="tablewrap"><table><thead><tr><th>반</th><th>전일등록</th><th>재등록</th><th>환불</th><th>등록계</th><th>재등록-남</th><th>재등록-여</th><th>미납</th></tr></thead><tbody>${t2}</tbody></table></div>
+    </div>
+    <div class="card">
+      <h3 style="justify-content:space-between"><span><span class="pin"></span> 경영지원 현황 대조</span><button class="btn" id="histVerifyBtn">불러와 대조</button></h3>
+      <div class="desc">완료된 과거 작업이라 경영지원과 맞아야 해요. 등록계(누적) 기준으로 비교합니다.</div>
+      <div id="histVerifyBox"><div class="note">‘불러와 대조’를 누르면 그날 경영지원 값과 비교합니다.</div></div>
+    </div>`;
+  const hv=document.getElementById('histVerifyBtn');
+  if(hv) hv.onclick=()=>verifyInto(R, document.getElementById('histVerifyBox'));
+}
 // 업로드 핸들러
 (function wireHist(){
   const input=document.getElementById('fileHist');
@@ -1279,12 +1342,15 @@ function buildResultFromRaw(date, rowsForDate, prevBan){
   drop.addEventListener('drop',e=>{ if(e.dataTransfer.files[0]) handle(e.dataTransfer.files[0]); });
   btn.onclick=()=>{
     const d=sel.value; if(!d||!HIST.byDate[d]) return;
-    const idx=HIST.dates.indexOf(d);
-    const prevDate=idx>0?HIST.dates[idx-1]:null;
-    const prevBan=prevDate? buildResultFromRaw(prevDate,HIST.byDate[prevDate].rows,null).perBan : null;
-    STATE.result=buildResultFromRaw(d, HIST.byDate[d].rows, prevBan);
-    renderDash(); switchTab('dash');
-    toast(`${d} 현황 표시`);
+    const R=buildCumulativeResult(d);
+    renderHist(R);
+    document.getElementById('histList').style.display='none';
+    document.getElementById('histView').style.display='block';
+  };
+  const back=document.getElementById('histBack');
+  if(back) back.onclick=()=>{
+    document.getElementById('histView').style.display='none';
+    document.getElementById('histList').style.display='block';
   };
 })();
 
